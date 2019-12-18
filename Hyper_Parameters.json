@@ -1,0 +1,139 @@
+{
+    "Sound": {
+        "Spectrogram_Dim": 1025,
+        "Mel_Dim": 80,
+        "Frame_Length": 50,
+        "Frame_Shift": 12.5,
+        "Sample_Rate": 16000,
+        "Max_Abs_Mel": 4
+    },
+
+    "Token_JSON_Path": "Token_Index_Dict.ENG.json",
+
+    "GST": {
+        "Use": false,
+        "Reference_Encoder": {
+            "Conv": {
+                "Filters": [32, 32, 64, 64, 128, 128],
+                "Kernel_Size": [3, 3, 3, 3, 3, 3],
+                "Strides": [2, 2, 2, 2, 2, 2]
+            },
+            "RNN": {
+                "Size": 128
+            },
+            "Dense": {
+                "Size": 128
+            }
+        },
+        "Stype_Token": {
+            "Size": 12,
+            "Attention": {
+                "Size": 128
+            },
+            "Embedding": {
+                "Size": 128
+            }
+        }
+    },
+
+    "Tacotron": {
+        "Encoder": {
+            "Embedding": {
+                "Size": 256
+            },
+            "Prenet": {
+                "Size": [256, 128],
+                "Dropout_Rate": 0.5
+            },
+            "CBHG": {
+                "Conv_Bank": {
+                    "Stack_Count": 16,
+                    "Filters": 128
+                },
+                "Pool": {
+                    "Pool_Size": 2,
+                    "Strides": 1
+                },
+                "Conv1D": {
+                    "Filters": [128, 128],
+                    "Kernel_Size": [3, 3]
+                },
+                "Highwaynet": {
+                    "Count": 4,
+                    "Size": 128
+                },
+                "RNN": {
+                    "Size": 256,
+                    "Zoneout": 0.0
+                }
+            }
+        },        
+        "Decoder": {
+            "Prenet": {
+                "Size": [256, 128],
+                "Dropout_Rate": 0.5
+            },
+            "Pre_RNN": {                
+                "Size": [256, 256],
+                "Zoneout": 0.0
+            },
+            "Attention": {
+                "Size": 256
+            },
+            "Post_RNN": {
+                "Size": [256],
+                "Zoneout": 0.0
+            },
+            "Inference_Step_Reduction": 3,
+            "Max_Step": 300
+        }
+    },
+
+    "Vocoder_Taco1": {
+        "CBHG": {
+            "Conv_Bank": {
+                "Stack_Count": 16,
+                "Filters": 128
+            },
+            "Pool": {
+                "Pool_Size": 2,
+                "Strides": 1
+            },
+            "Conv1D": {
+                "Filters": [128, 128],
+                "Kernel_Size": [3, 3]
+            },
+            "Highwaynet": {
+                "Count": 4,
+                "Size": 128
+            },
+            "RNN": {
+                "Size": 256,
+                "Zoneout": 0.0
+            }
+        },
+        "Griffin-Lim_Iter": 100
+    },
+
+    "Train": {
+        "Pattern_Path": "/home/heejo/Documents/Pattern/GST.Pattern",
+        "Metadata_File": "METADATA.PICKLE",
+        "Batch_Size": 16,
+        "Pattern_Sorting": true,
+        "Min_Wav_Length": 500,
+        "Max_Wav_Length": 12000,
+        "Max_Pattern_Queue": 20,
+        "Learning_Rate": 5e-4,
+        "ADAM": {
+            "Beta1": 0.9,
+            "Beta2": 0.999,
+            "Epsilon": 1e-6
+        },
+        "Use_L2_Loss": true,
+        "Inference_Timing": 1000,
+        "Checkpoint_Save_Timing": 1000
+    },
+
+    "Inference_Path": "/home/heejo/Documents/Results/GST_Taco/Inference",
+    "Checkpoint_Path": "/home/heejo/Documents/Results/GST_Taco/Checkpoint"
+}
