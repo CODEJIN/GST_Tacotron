@@ -159,7 +159,7 @@ class GST_Tacotron:
         mels = tf.zeros(shape=[tf.shape(initial_mels)[0], 0, hp_Dict['Sound']['Mel_Dim']], dtype= tf.float32)
         for index in range(hp_Dict['Tacotron']['Decoder']['Max_Step'] // hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction']):
             mels = tf.concat([initial_mels, mels], axis= 1)
-            mels, spectrograms, attention_Histories = self.model_Dict['Inference', 'Decoder']([encoder_Tensor, mels])
+            mels, spectrograms, attention_Histories = self.model_Dict['Inference', 'Decoder']([encoder_Tensor, mels])            
 
         return mels, spectrograms, attention_Histories
 

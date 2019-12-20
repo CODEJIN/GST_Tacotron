@@ -169,8 +169,14 @@ class Tacotron_Decoder(tf.keras.Model):
         '''
         key, mels = inputs
 
-        new_Tensor = self.layer_Dict['Prenet'](inputs= mels[:, 0:-1:hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'], :], training= training)
-
+        new_Tensor = tf.cond(
+            pred= training,
+            true_fn= lambda: mels[:, 0:-1:hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'], :],
+            false_fn= lambda: mels[:, 0::hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'], :]
+            )
+        # new_Tensor = mels[:, 0::hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'], :]
+        new_Tensor = self.layer_Dict['Prenet'](inputs= new_Tensor, training= training)
+        
         if hp_Dict['Tacotron']['Decoder']['Prenet']['Size'][-1] != hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Size'][0]:
             new_Tensor = self.layer_Dict['Correction_for_Residual'](inputs= new_Tensor)
 
