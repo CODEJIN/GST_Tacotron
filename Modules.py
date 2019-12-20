@@ -68,7 +68,7 @@ class Style_Token_Layer(tf.keras.layers.Layer): #Attention which is in layer mus
             trainable= True,
             )
 
-    def call(self, inputs, training= False):
+    def call(self, inputs):
         '''
         inputs: Reference_Encoder tensor
         '''
@@ -170,11 +170,11 @@ class Tacotron_Decoder(tf.keras.Model):
         key, mels = inputs
 
         new_Tensor = tf.cond(
-            pred= training,
+            pred= tf.convert_to_tensor(training),
             true_fn= lambda: mels[:, 0:-1:hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'], :],
             false_fn= lambda: mels[:, 0::hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'], :]
             )
-        # new_Tensor = mels[:, 0::hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'], :]
+        # new_Tensor = mels[:, 0::hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'], :]        
         new_Tensor = self.layer_Dict['Prenet'](inputs= new_Tensor, training= training)
         
         if hp_Dict['Tacotron']['Decoder']['Prenet']['Size'][-1] != hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Size'][0]:

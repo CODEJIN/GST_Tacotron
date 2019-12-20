@@ -45,7 +45,8 @@ class GST_Tacotron:
         layer_Dict['Vocoder_Taco1'] = Modules.Vocoder_Taco1()
         
         layer_Dict['Train', 'Encoder'] = layer_Dict['Tacotron_Encoder'](
-            layer_Dict['Token']
+            layer_Dict['Token'],
+            training= True
             )
             
         if hp_Dict['GST']['Use']:
@@ -57,15 +58,19 @@ class GST_Tacotron:
                 axis=-1
                 )
         
-        layer_Dict['Train', 'Export_Mel'], _ = layer_Dict['Tacotron_Decoder']([
-            layer_Dict['Train', 'Encoder'],
-            layer_Dict['Mel']
-            ])
+        layer_Dict['Train', 'Export_Mel'], _ = layer_Dict['Tacotron_Decoder'](
+            [layer_Dict['Train', 'Encoder'], layer_Dict['Mel']],
+            training= True
+            )
 
-        layer_Dict['Train', 'Export_Spectrogram'] = layer_Dict['Vocoder_Taco1'](layer_Dict['Train', 'Export_Mel'])
+        layer_Dict['Train', 'Export_Spectrogram'] = layer_Dict['Vocoder_Taco1'](
+            layer_Dict['Train', 'Export_Mel'],
+            training= True
+            )
         
         layer_Dict['Inference', 'Encoder'] = layer_Dict['Tacotron_Encoder'](
-            layer_Dict['Token']
+            layer_Dict['Token'],
+            training= False
             )
 
         if hp_Dict['GST']['Use']:
@@ -77,12 +82,15 @@ class GST_Tacotron:
                 axis=-1
                 )
 
-        layer_Dict['Inference', 'Export_Mel'], layer_Dict['Inference', 'Attention'] = layer_Dict['Tacotron_Decoder']([
-            layer_Dict['Encoder'],
-            layer_Dict['Mel']
-            ])
+        layer_Dict['Inference', 'Export_Mel'], layer_Dict['Inference', 'Attention'] = layer_Dict['Tacotron_Decoder'](
+            [layer_Dict['Encoder'], layer_Dict['Mel']],
+            training= False
+            )
 
-        layer_Dict['Inference', 'Export_Spectrogram'] = layer_Dict['Vocoder_Taco1'](layer_Dict['Inference', 'Export_Mel'])
+        layer_Dict['Inference', 'Export_Spectrogram'] = layer_Dict['Vocoder_Taco1'](
+            layer_Dict['Inference', 'Export_Mel'],
+            training= False
+            )
 
         self.model_Dict = {}
         self.model_Dict['Train'] = tf.keras.Model(
@@ -132,8 +140,8 @@ class GST_Tacotron:
             mel_Loss = tf.reduce_mean(tf.abs(mels[:, 1:] - mel_Logits), axis= -1)
             spectrogram_Loss = tf.reduce_mean(tf.abs(spectrograms[:, 1:] - spectrogram_Logits), axis= -1)
             if hp_Dict['Train']['Use_L2_Loss']:
-                mel_Loss += tf.reduce_mean(tf.pow(mels - mel_Logits, 2), axis= -1)
-                spectrogram_Loss += tf.reduce_mean(tf.pow(spectrograms - spectrogram_Logits, 2), axis= -1)
+                mel_Loss += tf.reduce_mean(tf.pow(mels[:, 1:] - mel_Logits, 2), axis= -1)
+                spectrogram_Loss += tf.reduce_mean(tf.pow(spectrograms[:, 1:] - spectrogram_Logits, 2), axis= -1)
 
             mel_Loss *= tf.sequence_mask(
                 lengths= mel_lengths,
