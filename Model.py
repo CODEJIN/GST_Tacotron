@@ -111,8 +111,14 @@ class GST_Tacotron:
         self.model_Dict['Inference', 'Decoder'].summary()
 
         #optimizer는 @tf.function의 밖에 있어야 함
+        learning_Rate = tf.keras.optimizers.schedules.ExponentialDecay(
+            initial_learning_rate= hp_Dict['Train']['Initial_Learning_Rate'],
+            decay_steps= 10000,
+            decay_rate= 0.5,
+            staircase= True)
+
         self.optimizer = tf.keras.optimizers.Adam(
-            learning_rate= hp_Dict['Train']['Learning_Rate'],
+            learning_rate= learning_Rate,
             beta_1= hp_Dict['Train']['ADAM']['Beta1'],
             beta_2= hp_Dict['Train']['ADAM']['Beta2'],
             epsilon= hp_Dict['Train']['ADAM']['Epsilon'],

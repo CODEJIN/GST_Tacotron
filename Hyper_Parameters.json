@@ -123,7 +123,8 @@
         "Min_Wav_Length": 500,
         "Max_Wav_Length": 10000,
         "Max_Pattern_Queue": 20,
-        "Learning_Rate": 5e-4,
+        "Initial_Learning_Rate": 2e-3,
+        "Min_Learning_Rate": 1e-5,
         "ADAM": {
             "Beta1": 0.9,
             "Beta2": 0.999,
