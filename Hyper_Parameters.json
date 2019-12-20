@@ -85,7 +85,7 @@
                 "Zoneout": 0.0
             },
             "Inference_Step_Reduction": 3,
-            "Max_Step": 300
+            "Max_Step": 600
         }
     },
 
@@ -118,10 +118,10 @@
     "Train": {
         "Pattern_Path": "/home/heejo/Documents/Pattern/GST.Pattern",
         "Metadata_File": "METADATA.PICKLE",
-        "Batch_Size": 16,
+        "Batch_Size": 12,
         "Pattern_Sorting": true,
         "Min_Wav_Length": 500,
-        "Max_Wav_Length": 12000,
+        "Max_Wav_Length": 10000,
         "Max_Pattern_Queue": 20,
         "Learning_Rate": 5e-4,
         "ADAM": {

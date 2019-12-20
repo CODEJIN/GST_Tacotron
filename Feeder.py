@@ -74,8 +74,8 @@ class Feeder:
                 path_List[x:x + hp_Dict['Train']['Batch_Size']]
                 for x in range(0, len(path_List), hp_Dict['Train']['Batch_Size'])
                 ]
-            shuffle(path_Batch_List)
-            #path_Batch_List = path_Batch_List[0:2] + list(reversed(path_Batch_List))  #Batch size의 적절성을 위한 코드. 10회 이상 되면 문제 없음
+            #shuffle(path_Batch_List)
+            path_Batch_List = path_Batch_List[0:2] + list(reversed(path_Batch_List))  #Batch size의 적절성을 위한 코드. 10회 이상 되면 문제 없음
 
             batch_Index = 0
             while batch_Index < len(path_Batch_List):
@@ -97,9 +97,9 @@ class Feeder:
                     token_List.append(pattern_Dict['Token'])
                     spectrogram_List.append(pattern_Dict['Spectrogram'])
 
-                max_Mel_Length = max([mel.shape[0] + 1 for mel in mel_List])    #initial frame
+                max_Mel_Length = max([mel.shape[0] for mel in mel_List])
                 max_Token_Length = max([token.shape[0] for token in token_List])
-                max_Spectrogram_Length = max([spect.shape[0] for spect in spectrogram_List])    #initial frame
+                max_Spectrogram_Length = max([spect.shape[0] for spect in spectrogram_List])
 
                 new_Mel_Pattern = np.zeros(
                     shape=(pattern_Count, max_Mel_Length, hp_Dict['Sound']['Mel_Dim']),
@@ -129,14 +129,15 @@ class Feeder:
                     ])  #initial frame
                 
                 padded_Length = np.maximum(new_Mel_Pattern.shape[1], new_Spectrogram_Pattern.shape[1])
-                padded_Length = int(np.ceil(padded_Length / 3) * 3)
+                padded_Length = int(np.ceil(padded_Length / hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction']) * hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'])
                 new_Mel_Pattern = np.hstack([
                     new_Mel_Pattern,
-                    np.zeros(shape=(pattern_Count, padded_Length - new_Mel_Pattern.shape[1], hp_Dict['Sound']['Mel_Dim']), dtype= np.float32),                                        ])  #initial frame
+                    np.zeros(shape=(pattern_Count, padded_Length - new_Mel_Pattern.shape[1] + 1, hp_Dict['Sound']['Mel_Dim']), dtype= np.float32)
+                    ])  # +1 is initial frame. This frame is removed when loss calc.
                 new_Spectrogram_Pattern = np.hstack([                    
                     new_Spectrogram_Pattern,
-                    np.zeros(shape=(pattern_Count, padded_Length - new_Spectrogram_Pattern.shape[1], hp_Dict['Sound']['Spectrogram_Dim']), dtype= np.float32),
-                    ])
+                    np.zeros(shape=(pattern_Count, padded_Length - new_Spectrogram_Pattern.shape[1] + 1, hp_Dict['Sound']['Spectrogram_Dim']), dtype= np.float32),
+                    ])  # +1 is initial frame. This frame is removed when loss calc.
                 
                 self.pattern_Queue.append({
                     'mels': new_Mel_Pattern,

@@ -61,6 +61,7 @@ class GST_Tacotron:
             layer_Dict['Train', 'Encoder'],
             layer_Dict['Mel']
             ])
+
         layer_Dict['Train', 'Export_Spectrogram'] = layer_Dict['Vocoder_Taco1'](layer_Dict['Train', 'Export_Mel'])
         
         layer_Dict['Inference', 'Encoder'] = layer_Dict['Tacotron_Encoder'](
@@ -80,6 +81,7 @@ class GST_Tacotron:
             layer_Dict['Encoder'],
             layer_Dict['Mel']
             ])
+
         layer_Dict['Inference', 'Export_Spectrogram'] = layer_Dict['Vocoder_Taco1'](layer_Dict['Inference', 'Export_Mel'])
 
         self.model_Dict = {}
@@ -127,11 +129,12 @@ class GST_Tacotron:
                 training= True
                 )
 
-            mel_Loss = tf.reduce_mean(tf.abs(mels - mel_Logits), axis= -1)
-            spectrogram_Loss = tf.reduce_mean(tf.abs(spectrograms - spectrogram_Logits), axis= -1)
+            mel_Loss = tf.reduce_mean(tf.abs(mels[:, 1:] - mel_Logits), axis= -1)
+            spectrogram_Loss = tf.reduce_mean(tf.abs(spectrograms[:, 1:] - spectrogram_Logits), axis= -1)
             if hp_Dict['Train']['Use_L2_Loss']:
                 mel_Loss += tf.reduce_mean(tf.pow(mels - mel_Logits, 2), axis= -1)
                 spectrogram_Loss += tf.reduce_mean(tf.pow(spectrograms - spectrogram_Logits, 2), axis= -1)
+
             mel_Loss *= tf.sequence_mask(
                 lengths= mel_lengths,
                 maxlen= tf.shape(mel_Loss)[-1],
@@ -143,6 +146,7 @@ class GST_Tacotron:
                 dtype= tf.float32
                 )
             loss = tf.reduce_mean(mel_Loss) + tf.reduce_mean(spectrogram_Loss)
+
         gradients = tape.gradient(loss, self.model_Dict['Train'].trainable_variables)
         self.optimizer.apply_gradients(zip(gradients, self.model_Dict['Train'].trainable_variables))
 
