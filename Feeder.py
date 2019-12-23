@@ -4,7 +4,8 @@ from collections import deque
 from threading import Thread
 from random import shuffle
 
-from Audio import melspectrogram, spectrogram
+from Pattern_Generator import Mel_Generate
+
 
 with open('Hyper_Parameters.json', 'r') as f:
     hp_Dict = json.load(f)
@@ -150,13 +151,12 @@ class Feeder:
 
                 batch_Index += 1
 
-
     def Get_Pattern(self):
         while len(self.pattern_Queue) == 0: #When training speed is faster than making pattern, model should be wait.
             time.sleep(0.01)
         return self.pattern_Queue.popleft()
     
-    def Get_Inference_Pattern(self, sentence_List):
+    def Get_Inference_Pattern(self, sentence_List, wav_List_for_GST= None):
         pattern_Count = len(sentence_List)
 
         sentence_List = [sentence.upper().strip() for sentence in sentence_List]
@@ -177,7 +177,7 @@ class Feeder:
             dtype= np.int32
             ) + self.token_Index_Dict['<E>']
 
-        new_Mel_Pattern = np.zeros(
+        new_Initial_Mel_Pattern = np.zeros(
             shape=(pattern_Count, 1, hp_Dict['Sound']['Mel_Dim']),
             dtype= np.float32
             )
@@ -185,11 +185,39 @@ class Feeder:
         for pattern_Index, token in enumerate(token_List):
             new_Token_Pattern[pattern_Index, :token.shape[0]] = token
     
-        return {
+        pattern_Dict = {
             'tokens': new_Token_Pattern,
             'token_lengths': np.array([token.shape[0] for token in token_List], dtype=np.int32),
-            'initial_mels': new_Mel_Pattern
+            'initial_mels': new_Initial_Mel_Pattern
             }
+
+        if hp_Dict['GST']['Use']:        
+            if wav_List_for_GST is None:
+                print('GST is enabled, but no wav information.')
+                return
+            if not len(wav_List_for_GST) in [1, pattern_Count]:
+                print('The length of wav_List_for_GST must be 1 or same to the length of sentence_List and wav_List_for_GST must be same.')
+                return
+
+            if len(wav_List_for_GST) == 1:                
+                new_Mel_Pattern_for_GST = np.stack([Mel_Generate(wav_List_for_GST[0])] * pattern_Count, axis= 0)
+            else:
+                mel_List = [Mel_Generate(path, True) for path in wav_List_for_GST]
+                max_Mel_Length = max([mel.shape[0] for mel in mel_List])
+                new_Mel_Pattern_for_GST = np.zeros(
+                    shape=(pattern_Count, max_Mel_Length, hp_Dict['Sound']['Mel_Dim']),
+                    dtype= np.float32
+                    )
+                for pattern_Index, mel in enumerate(mel_List):
+                    new_Mel_Pattern_for_GST[pattern_Index, :mel.shape[0]] = mel
+                
+            # GST does not need an initial frame. But for the same pattern input as the training, I add an initial frame
+            pattern_Dict['mels_for_gst'] = np.hstack([
+                np.zeros(shape=(pattern_Count, 1, hp_Dict['Sound']['Mel_Dim']), dtype= np.float32),
+                new_Mel_Pattern_for_GST
+                ])
+
+        return pattern_Dict
 
 if __name__ == "__main__":
     new_Feeder = Feeder(is_Training= True)

@@ -1,0 +1,3 @@
+./Wav_for_Inference/BC2013.CB-20K1-01-01.wav
+./Wav_for_Inference/LJ.LJ001-0001.wav
+./Wav_for_Inference/VCTK.p376_001.wav

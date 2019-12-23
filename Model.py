@@ -22,7 +22,7 @@ class GST_Tacotron:
 
     def Model_Generate(self):
         layer_Dict = {}
-        layer_Dict['Mel'] = tf.keras.layers.Input(shape=[None, hp_Dict['Sound']['Mel_Dim']], dtype= tf.float32)        
+        layer_Dict['Mel'] = tf.keras.layers.Input(shape=[None, hp_Dict['Sound']['Mel_Dim']], dtype= tf.float32)
         layer_Dict['Mel_Length'] = tf.keras.layers.Input(shape=[], dtype= tf.int32)
         layer_Dict['Token'] = tf.keras.layers.Input(shape=[None,], dtype= tf.int32)
         layer_Dict['Token_Length'] = tf.keras.layers.Input(shape=[], dtype= tf.int32)
@@ -34,11 +34,11 @@ class GST_Tacotron:
                 hp_Dict['Tacotron']['Encoder']['CBHG']['RNN']['Size'] * 2 + (hp_Dict['GST']['Style_Token']['Embedding']['Size'] if hp_Dict['GST']['Use'] else 0)
                 ],
             dtype= tf.float32
-            )
+            )        
         
         if hp_Dict['GST']['Use']:
-            layer_Dict['Reference_Encoder'] = Modules.Reference_Encoder()
-            layer_Dict['Style_Token_Layer'] = Modules.Style_Token_Layer()
+            # layer_Dict['Mel_for_GST'] = tf.keras.layers.Input(shape=[None, hp_Dict['Sound']['Mel_Dim']], dtype= tf.float32)
+            layer_Dict['GST_Concated_Encoder'] = Modules.GST_Concated_Encoder()
         
         layer_Dict['Tacotron_Encoder'] = Modules.Tacotron_Encoder()
         layer_Dict['Tacotron_Decoder'] = Modules.Tacotron_Decoder()
@@ -50,14 +50,11 @@ class GST_Tacotron:
             )
             
         if hp_Dict['GST']['Use']:
-            layer_Dict['Train', 'Style'] = layer_Dict['Style_Token_Layer'](
-                layer_Dict['Reference_Encoder'](layer_Dict['Mel'])
-                )
-            layer_Dict['Train', 'Encoder'] = tf.concat(
-                [layer_Dict['Train', 'Encoder'], layer_Dict['Train', 'Style']],
-                axis=-1
-                )
-        
+            layer_Dict['Train', 'Encoder'] = layer_Dict['GST_Concated_Encoder']([
+                layer_Dict['Train', 'Encoder'],
+                layer_Dict['Mel']
+                ])
+
         layer_Dict['Train', 'Export_Mel'], _ = layer_Dict['Tacotron_Decoder'](
             [layer_Dict['Train', 'Encoder'], layer_Dict['Mel']],
             training= True
@@ -72,15 +69,12 @@ class GST_Tacotron:
             layer_Dict['Token'],
             training= False
             )
-
+        
         if hp_Dict['GST']['Use']:
-            layer_Dict['Inference', 'Style'] = layer_Dict['Style_Token_Layer'](
-                layer_Dict['Reference_Encoder'](layer_Dict['Mel'])
-                )
-            layer_Dict['Inference', 'Encoder'] = tf.concat(
-                [layer_Dict['Inference', 'Encoder'], layer_Dict['Inference', 'Style']],
-                axis=-1
-                )
+            layer_Dict['Inference', 'Encoder'] = layer_Dict['GST_Concated_Encoder']([
+                layer_Dict['Inference', 'Encoder'],
+                layer_Dict['Mel']
+                ])
 
         layer_Dict['Inference', 'Export_Mel'], layer_Dict['Inference', 'Attention'] = layer_Dict['Tacotron_Decoder'](
             [layer_Dict['Encoder'], layer_Dict['Mel']],
@@ -97,10 +91,11 @@ class GST_Tacotron:
             inputs=[layer_Dict['Mel'], layer_Dict['Token'], layer_Dict['Spectrogram']],
             outputs= [layer_Dict['Train', 'Export_Mel'], layer_Dict['Train', 'Export_Spectrogram']]
             )
+
         self.model_Dict['Inference', 'Encoder'] = tf.keras.Model(
-            inputs=[layer_Dict['Token']],
+            inputs=[layer_Dict['Token'], layer_Dict['Mel']] if hp_Dict['GST']['Use'] else layer_Dict['Token'],
             outputs= [layer_Dict['Inference', 'Encoder']]
-            )
+            )        
         self.model_Dict['Inference', 'Decoder'] = tf.keras.Model(
             inputs=[layer_Dict['Encoder'], layer_Dict['Mel']],
             outputs= [layer_Dict['Inference', 'Export_Mel'], layer_Dict['Inference', 'Export_Spectrogram'], layer_Dict['Inference', 'Attention']]
@@ -167,11 +162,15 @@ class GST_Tacotron:
         return loss
 
     # @tf.function
-    def Inference_Step(self, tokens, token_lengths, initial_mels):
-        encoder_Tensor = self.model_Dict['Inference', 'Encoder'](tokens)
+    def Inference_Step(self, tokens, token_lengths, initial_mels, mels_for_gst= None):
+        if hp_Dict['GST']['Use']:
+            encoder_Tensor = self.model_Dict['Inference', 'Encoder']([tokens, mels_for_gst])
+        else:
+            encoder_Tensor = self.model_Dict['Inference', 'Encoder'](tokens)
 
         mels = tf.zeros(shape=[tf.shape(initial_mels)[0], 0, hp_Dict['Sound']['Mel_Dim']], dtype= tf.float32)
-        for index in range(hp_Dict['Tacotron']['Decoder']['Max_Step'] // hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction']):
+        for step in range(hp_Dict['Tacotron']['Decoder']['Max_Step'] // hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction']):
+            print('{} / {}'.format(step, hp_Dict['Tacotron']['Decoder']['Max_Step'] // hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction']))
             mels = tf.concat([initial_mels, mels], axis= 1)
             mels, spectrograms, attention_Histories = self.model_Dict['Inference', 'Decoder']([encoder_Tensor, mels])            
 
@@ -196,7 +195,16 @@ class GST_Tacotron:
             with open('Inference_Sentence_for_Training.txt', 'r') as f:
                 for line in f.readlines():
                     sentence_List.append(line.strip())
-            self.Inference(sentence_List)
+
+            if hp_Dict['GST']['Use']:
+                wav_List_for_GST = []
+                with open('Inference_Wav_for_Training.txt', 'r') as f:
+                    for line in f.readlines():
+                        wav_List_for_GST.append(line.strip())
+            else:
+                wav_List_for_GST = None
+
+            self.Inference(sentence_List, wav_List_for_GST)
 
         step = 0
         Save_Checkpoint()
@@ -219,11 +227,15 @@ class GST_Tacotron:
             if step % hp_Dict['Train']['Inference_Timing'] == 0:
                 Run_Inference()
 
-    def Inference(self, sentence_List, label= None):
+    def Inference(self, sentence_List, wav_List_for_GST= None, label= None):
         print('Inference running...')
 
+        pattern_Dict = self.feeder.Get_Inference_Pattern(sentence_List, wav_List_for_GST)
+        if pattern_Dict is None:
+            print('Inference fail.')
+            return
         mels, spectrograms, attention_Histories = self.Inference_Step(
-            **self.feeder.Get_Inference_Pattern(sentence_List)
+            **pattern_Dict
             )
 
         export_Inference_Thread = Thread(

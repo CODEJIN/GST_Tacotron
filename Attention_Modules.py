@@ -332,8 +332,6 @@ class LocationSensitiveAttention(tf.keras.layers.AdditiveAttention):
         """
         return tf.nn.sigmoid(e) / tf.reduce_sum(tf.nn.sigmoid(e), axis=-1, keepdims=True)
 
-
-# Refer: https://github.com/begeekmyfriend/tacotron/blob/60d6932f510bf591acb25620290868900b5c0a41/models/attention.py
 class BahdanauMonotonicAttention(tf.keras.layers.AdditiveAttention):
     '''
     Refer: https://github.com/tensorflow/tensorflow/blob/r2.0/tensorflow/python/keras/layers/dense_attention.py#L307-L440
@@ -487,7 +485,6 @@ class BahdanauMonotonicAttention(tf.keras.layers.AdditiveAttention):
         x = tf.convert_to_tensor(x, name="x")
         tiny = np.finfo(x.dtype.as_numpy_dtype).tiny
         return tf.exp(tf.cumsum(tf.math.log(tf.clip_by_value(x, tiny, 1)), *args, **kwargs))
-
 
 class StepwiseMonotonicAttention(tf.keras.layers.AdditiveAttention):
     '''

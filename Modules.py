@@ -58,12 +58,12 @@ class Style_Token_Layer(tf.keras.layers.Layer): #Attention which is in layer mus
         
         self.layer_Dict = {}
         self.layer_Dict['Attention'] = DotProductAttention(
-            size= hp_Dict['GST']['Stype_Token']['Attention']['Size']
+            size= hp_Dict['GST']['Style_Token']['Attention']['Size']
             )
 
         self.gst_tokens = self.add_weight(
             name= 'gst_tokens',
-            shape= [hp_Dict['GST']['Stype_Token']['Size'], hp_Dict['GST']['Stype_Token']['Embedding']['Size']],
+            shape= [hp_Dict['GST']['Style_Token']['Size'], hp_Dict['GST']['Style_Token']['Embedding']['Size']],
             dtype= tf.float32,
             trainable= True,
             )
@@ -75,12 +75,30 @@ class Style_Token_Layer(tf.keras.layers.Layer): #Attention which is in layer mus
         new_Tensor, _ = self.layer_Dict['Attention'](
             inputs= [inputs, tf.tanh(self.gst_tokens)]  #[query, value, key] or [query, value]
             )
-        print(new_Tensor)
-        new_Tensor = tf.expand_dims(new_Tensor, axis=1)
-        print(new_Tensor)
-        assert False
+
         return new_Tensor
 
+class GST_Concated_Encoder(tf.keras.layers.Layer):
+    def __init__(self):
+        super(GST_Concated_Encoder, self).__init__()
+        
+        self.layer_Dict = {}
+        self.layer_Dict['Reference_Encoder'] = Reference_Encoder()
+        self.layer_Dict['Style_Token_Layer'] = Style_Token_Layer()
+
+    def call(self, inputs):
+        '''
+        inputs: [encoder, mels_for_gst]
+        '''
+        encoders, mels_for_gst = inputs
+        
+        new_Tensor = self.layer_Dict['Reference_Encoder'](mels_for_gst[:, 1:])  #Initial frame deletion
+        new_Tensor = self.layer_Dict['Style_Token_Layer'](new_Tensor)
+        new_Tensor = tf.expand_dims(new_Tensor, axis= 1)
+        new_Tensor = tf.tile(new_Tensor, [1, tf.shape(encoders)[1], 1])        
+        new_Tensor = tf.concat([encoders, new_Tensor], axis=-1)
+        
+        return new_Tensor
 
 class Tacotron_Encoder(tf.keras.Model):
     def __init__(self):
@@ -174,7 +192,6 @@ class Tacotron_Decoder(tf.keras.Model):
             true_fn= lambda: mels[:, 0:-1:hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'], :],
             false_fn= lambda: mels[:, 0::hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'], :]
             )
-        # new_Tensor = mels[:, 0::hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'], :]        
         new_Tensor = self.layer_Dict['Prenet'](inputs= new_Tensor, training= training)
         
         if hp_Dict['Tacotron']['Decoder']['Prenet']['Size'][-1] != hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Size'][0]:
