@@ -1,11 +1,27 @@
 import tensorflow as tf
 import numpy as np
+from scipy.special import comb, beta
 
 '''
 TF 2.0's basic attention layers(Attention and AdditiveAttention) calculate parallelly.
 TO USE MONOTONIC FUNCTION, ATTENTION MUST KNOW 'n-1 ALIGNMENT'.
 Thus, this parallel versions do not support the monotonic function.
 '''
+
+'''
+Tested:
+DotProductAttention
+BahdanauAttention
+LocationSensitiveAttention
+
+Testing:
+DynamicConvolutionAttention
+
+Not yet:
+BahdanauMonotonicAttention
+StepwiseMonotonicAttention
+'''
+
 
 class DotProductAttention(tf.keras.layers.Attention):
     '''
@@ -241,7 +257,7 @@ class LocationSensitiveAttention(tf.keras.layers.AdditiveAttention):
         value = self.layer_Dict['Value'](inputs[1])
         key = self.layer_Dict['Key'](inputs[2]) if len(inputs) > 2 else value
 
-        contexts = tf.zeros(shape= [tf.shape(query)[0], 1, self.size])  #initial alignment, [Batch, 1, Att_dim]
+        contexts = tf.zeros(shape= [tf.shape(query)[0], 1, self.size])  #initial attention, [Batch, 1, Att_dim]
         alignments = tf.zeros(shape= (tf.shape(query)[0], 1, tf.shape(key)[1]))   #initial alignment, [Batch, 1, T_k]
 
         initial_Step = tf.constant(0)
@@ -395,7 +411,7 @@ class BahdanauMonotonicAttention(tf.keras.layers.AdditiveAttention):
         value = self.layer_Dict['Value'](inputs[1])
         key = self.layer_Dict['Key'](inputs[2]) if len(inputs) > 2 else value
 
-        contexts = tf.zeros(shape= [tf.shape(query)[0], 1, self.size])  #initial alignment, [Batch, 1, Att_dim]
+        contexts = tf.zeros(shape= [tf.shape(query)[0], 1, self.size])  #initial attention, [Batch, 1, Att_dim]
         alignments = tf.expand_dims(
             tf.one_hot(
                 indices= tf.zeros((tf.shape(query)[0]), dtype= tf.int32),
@@ -548,7 +564,7 @@ class StepwiseMonotonicAttention(tf.keras.layers.AdditiveAttention):
         value = self.layer_Dict['Value'](inputs[1])
         key = self.layer_Dict['Key'](inputs[2]) if len(inputs) > 2 else value
 
-        contexts = tf.zeros(shape= [tf.shape(query)[0], 1, self.size])  #initial alignment, [Batch, 1, Att_dim]
+        contexts = tf.zeros(shape= [tf.shape(query)[0], 1, self.size])  #initial attention, [Batch, 1, Att_dim]
         alignments = tf.expand_dims(
             tf.one_hot(
                 indices= tf.zeros((tf.shape(query)[0]), dtype= tf.int32),
@@ -619,3 +635,242 @@ class StepwiseMonotonicAttention(tf.keras.layers.AdditiveAttention):
             [pad, previous_alignment[:, :-1] * (1.0 - p_choose_i[:, :-1])], axis=1)
 
         return alignment
+
+class DynamicConvolutionAttention(tf.keras.layers.AdditiveAttention):
+    '''
+    Refer: https://gist.github.com/attitudechunfeng/c162a5ed9b034be8f3f5800652af7c83
+    '''
+    def __init__(
+        self,
+        size,
+        f_conv_filters= 8,
+        f_conv_kernel_size= 21,
+        f_conv_stride= 1,
+        g_conv_filters= 8,
+        g_conv_kernel_size= 21,
+        g_conv_stride= [1, 1, 1, 1],
+        p_conv_size = 11,
+        p_alpha= 0.1,
+        p_beta = 0.9,        
+        use_scale=False,
+        cumulate_weights= False,
+        **kwargs
+        ):
+        super(DynamicConvolutionAttention, self).__init__(use_scale= use_scale, **kwargs)
+        
+        self.size = size
+        self.f_conv_filters= f_conv_filters
+        self.f_conv_kernel_size= f_conv_kernel_size
+        self.f_conv_stride= f_conv_stride
+        self.g_conv_filters= g_conv_filters
+        self.g_conv_kernel_size= g_conv_kernel_size
+        self.g_conv_stride= g_conv_stride
+        self.p_conv_size = p_conv_size
+        self.p_alpha= p_alpha
+        self.p_beta = p_beta
+        self.cumulate_weights = cumulate_weights
+        self.layer_Dict = {}
+        self.layer_Dict['Query'] = tf.keras.layers.Dense(size)
+        self.layer_Dict['Value'] = tf.keras.layers.Dense(size)
+        self.layer_Dict['Key'] = tf.keras.layers.Dense(size)
+
+        self.layer_Dict['F_Conv'] = tf.keras.layers.Conv1D(
+            filters= f_conv_filters,
+            kernel_size= f_conv_kernel_size,
+            strides= f_conv_stride,
+            padding='same'
+            )
+        self.layer_Dict['F_Dense'] = tf.keras.layers.Dense(
+            size,
+            use_bias= False
+            )
+        
+        self.layer_Dict['G_Filter_Dense_0'] = tf.keras.layers.Dense(
+            units= g_conv_kernel_size * g_conv_filters,
+            use_bias= True,
+            activation= 'tanh'
+            )
+        self.layer_Dict['G_Filter_Dense_1'] = tf.keras.layers.Dense(
+            units= g_conv_kernel_size * g_conv_filters,
+            use_bias= False
+            )
+        self.layer_Dict['G_Dense'] = tf.keras.layers.Dense(
+            size,
+            use_bias= False
+            )
+
+        self.layer_Dict['P_Conv'] = DCA_P_Conv1D(
+            p_conv_size = p_conv_size,
+            p_alpha= p_alpha,
+            p_beta = p_beta,
+            )
+        
+
+    def build(self, input_shape):
+        """Creates scale and bias variable if use_scale==True."""
+        if self.use_scale:
+            self.scale = self.add_weight(
+                name='scale',
+                shape=[self.size],
+                initializer= tf.initializers.glorot_uniform(),
+                dtype=self.dtype,
+                trainable=True)            
+        else:
+            self.scale = None
+
+        self.bias = self.add_weight(
+            name='bias',
+            shape=[self.size,],
+            initializer=tf.zeros_initializer(),
+            dtype=self.dtype,
+            trainable=True
+            )
+
+        self.bulit = True
+
+    def call(self, inputs):
+        '''
+        inputs: [query, value] or [query, value, key]
+        I don't implement the mask function now.
+        '''
+        self._validate_call_args(inputs=inputs, mask= None)
+        query = self.layer_Dict['Query'](inputs[0])
+        value = self.layer_Dict['Value'](inputs[1])
+        key = self.layer_Dict['Key'](inputs[2]) if len(inputs) > 2 else value
+
+        batch_size = tf.shape(query)[0]
+        contexts = tf.zeros(shape= [tf.shape(query)[0], 1, self.size])  #initial attention, [Batch, 1, Att_dim]
+        alignments = tf.zeros(shape= (tf.shape(query)[0], 1, tf.shape(key)[1]))   #initial alignment, [Batch, 1, T_k]
+
+        initial_Step = tf.constant(0)
+        def body(step, query, contexts, alignments):
+            query_Step = query[:, step] #[Batch, Att_dim]            
+            previous_alignment = tf.reduce_sum(alignments, axis= 1) if self.cumulate_weights else alignments[:, -1] #[Batch, T_k]
+            previous_alignment = tf.expand_dims(previous_alignment, axis= -1) #[Batch, T_k, 1]
+
+            feature_previous_alignment = self.layer_Dict['F_Conv'](previous_alignment)    #[Batch, T_k, Filters]
+            feature_previous_alignment = self.layer_Dict['F_Dense'](feature_previous_alignment)   #[Batch, T_k, Att_dim]
+
+            dynamic_filter = self.layer_Dict['G_Filter_Dense_0'](query_Step)    # [Batch, Conv_Size * Conv_Ch]
+            dynamic_filter = self.layer_Dict['G_Filter_Dense_1'](dynamic_filter)    # [Batch, Conv_Size * Conv_Ch]
+            dynamic_filter = tf.reshape(
+                dynamic_filter,
+                shape= [batch_size, 1, self.g_conv_kernel_size, self.g_conv_filters]
+                )   # [Batch, 1, Conv_Size, Conv_Ch]
+            dynamic_filter = tf.transpose(
+                dynamic_filter,
+                perm= [1, 2, 0, 3]
+                )   # [1, Conv_Size, Batch, Conv_Ch]    [H(1), W, C_in, C_out]
+            dynamic_previous_alignment = tf.expand_dims(
+                tf.transpose(
+                    previous_alignment,    
+                    perm= [2, 1, 0]
+                    ),   
+                    axis = 0
+                )   #[N(Batch), W(K_t), C(1)] -> [C(1), W(K_t), N(Batch)] -> [1, C(1), W(K_t), N(Batch)]
+            dynamic_previous_alignment  = tf.nn.depthwise_conv2d(
+                dynamic_previous_alignment,
+                filter= dynamic_filter,
+                strides= self.g_conv_stride,
+                padding= 'SAME'
+                )   # [1, 1, K_t, Batch * G_Filter]
+            dynamic_previous_alignment = tf.squeeze(input= dynamic_previous_alignment, axis= [0, 1])  # [K_t, Batch * G_Filter]
+            dynamic_previous_alignment = tf.reshape(
+                dynamic_previous_alignment,
+                shape= [tf.shape(dynamic_previous_alignment)[0], batch_size, self.g_conv_filters]
+                )   # [K_t, Batch, G_Filter]
+            dynamic_previous_alignment = tf.transpose(
+                dynamic_previous_alignment,
+                perm= [1, 0, 2]
+                )   # [K_t, Batch, G_Filter]
+            dynamic_previous_alignment = self.layer_Dict['G_Dense'](dynamic_previous_alignment)  #[Batch, K_t, Att_Dim]
+
+            prior_filter_bias = self.layer_Dict['P_Conv'](previous_alignment)   #[Batch, K_t]
+
+            score = self._calculate_scores(
+                feature_previous_alignment= feature_previous_alignment,
+                dynamic_previous_alignment= dynamic_previous_alignment,
+                prior_filter_bias= prior_filter_bias
+                )   #[Batch, T_k]
+            context, alignment  = self._apply_scores(score= score, value= value) #[Batch, Att_dim], [Batch, T_v]
+
+            return step + 1, query, tf.concat([contexts, context], axis= 1),  tf.concat([alignments, alignment], axis= 1)
+
+        _, _, contexts, alignments = tf.while_loop(
+            cond= lambda step, query, contexts, alignments: tf.less(step, tf.shape(query)[1]),
+            body= body,
+            loop_vars= [initial_Step, query, contexts, alignments],
+            shape_invariants= [initial_Step.get_shape(), query.get_shape(), tf.TensorShape([None, None, self.size]), tf.TensorShape([None, None, None])]
+            )
+
+        return contexts[:, 1:], alignments[:, 1:]   #Remove initial step
+
+    def _calculate_scores(self, feature_previous_alignment, dynamic_previous_alignment, prior_filter_bias):
+        """Calculates attention scores as a nonlinear sum of query and key.
+        Args:
+        feature_previous_alignment: Location_features of shape `[batch_size, T_k, Att_dim]`.
+        dynamic_previous_alignment: Dynamic features of shape `[batch_size, T_k, Att_dim]`.
+        prior_filter_bias: Prior filter bias of shape `[batch_size, T_k]`.
+        Returns:
+        Tensor of shape `[batch_size, T_k]`.
+        """
+        if self.use_scale:
+            scale = self.scale
+        else:
+            scale = 1.
+        score = tf.reduce_sum(
+            scale * tf.tanh(feature_previous_alignment + dynamic_previous_alignment + self.bias),
+            axis=-1
+            )   #[Batch, T_k, Att_dim] -> [Batch, T_k]
+        return score + prior_filter_bias
+
+    #In TF1, 'context' is calculated in AttentionWrapper, not attention mechanism.
+    def _apply_scores(self, score, value):
+        '''
+        score shape: [batch_size, T_k]`.
+        value shape: [batch_size, T_v, Att_dim]`.
+        Must T_k == T_v
+
+        Return: [batch_size, Att_dim]
+        '''
+        score = tf.expand_dims(score, axis= 1)  #[Batch_size, 1, T_v]
+        alignment = tf.nn.softmax(score)   #[Batch_size, 1, T_v]
+        context = tf.matmul(alignment, value)   #[Batch_size, 1, Att_dim]
+
+        #return tf.squeeze(context, axis= 1), tf.squeeze(alignment, axis= 1),   #[Batch, Att_dim], [Batch, T_v]
+        return context, alignment
+
+    def beta_binomial(self, _n, _alpha, _beta):
+        return [comb(_n,i) * beta(i+_alpha, _n-i+_beta) / beta(_alpha, _beta) for i in range(_n)]
+
+
+class DCA_P_Conv1D(tf.keras.layers.Conv1D):
+    def __init__(self, p_conv_size= 11, p_alpha= 0.1, p_beta= 0.9):
+        self.p_conv_size= p_conv_size
+        self.p_alpha= p_alpha
+        self.p_beta= p_beta
+        
+        prior_filter = self.beta_binomial(self.p_conv_size, self.p_alpha, self.p_beta)
+        prior_filter = np.flip(prior_filter, axis= 0)
+        prior_filter = np.reshape(prior_filter, [self.p_conv_size, 1, 1])
+
+        super(DCA_P_Conv1D, self).__init__(
+            filters= 1,
+            kernel_size= self.p_conv_size,
+            padding='valid',
+            use_bias= False,
+            kernel_initializer= tf.initializers.constant(prior_filter)
+            )
+    
+    def call(self, inputs):
+        '''
+        inputs: 3D tensor with shape: `(batch_size, steps, input_dim)`
+        After front padding, call a superior class(Conv1D)
+        '''
+        inputs = tf.pad(inputs, paddings= [[0,0], [self.p_conv_size - 1, 0], [0, 0]])
+        new_Tensor = super(DCA_P_Conv1D, self).call(inputs)
+        return tf.maximum(tf.math.log(tf.squeeze(new_Tensor, axis= -1) + 1e-8), -1e+6)
+
+    def beta_binomial(self, _n, _alpha, _beta):
+        from scipy.special import comb, beta        
+        return [comb(_n,i) * beta(i+_alpha, _n-i+_beta) / beta(_alpha, _beta) for i in range(_n)]
