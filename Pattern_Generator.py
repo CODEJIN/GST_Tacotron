@@ -210,6 +210,31 @@ def LJ_Info_Load(lj_Path):
     print('LJ info generated: {}'.format(len(lj_File_Path_List)))
     return lj_File_Path_List, lj_Text_Dict
 
+def BC2013_Info_Load(bc2013_Path):
+    text_Path_List = []
+    for root, _, files in os.walk(bc2013_Path):
+        for filename in files:
+            if os.path.splitext(filename)[1].upper() != '.txt'.upper():
+                continue
+            text_Path_List.append(os.path.join(root, filename).replace('\\', '/'))
+
+    bc2013_File_Path_List = []
+    bc2013_Text_Dict = {}
+
+    for text_Path in text_Path_List:
+        wav_Path = text_Path.replace('txt', 'wav')
+        if not os.path.exists(wav_Path):
+            continue
+        with open(text_Path, 'r') as f:
+            text = Text_Filtering(f.read().strip())
+            if text is None:
+                continue
+
+        bc2013_File_Path_List.append(wav_Path)
+        bc2013_Text_Dict[wav_Path] = text
+
+    print('BC2013 info generated: {}'.format(len(bc2013_File_Path_List)))
+    return bc2013_File_Path_List, bc2013_Text_Dict
 
 def Metadata_Generate(token_Index_Dict):
     new_Metadata_Dict = {
@@ -249,6 +274,7 @@ if __name__ == '__main__':
     argParser.add_argument("-vctk", "--vctk_path", required=False)
     argParser.add_argument("-ls", "--ls_path", required=False)
     argParser.add_argument("-timit", "--timit_path", required=False)
+    argParser.add_argument("-bc2013", "--bc2013_path", required=False)
     argParser.add_argument("-all", "--all_save", action='store_true') #When this parameter is False, only correct time range patterns are generated.
     argParser.set_defaults(all_save = False)
     argument_Dict = vars(argParser.parse_args())
@@ -267,9 +293,12 @@ if __name__ == '__main__':
     if not argument_Dict['timit_path'] is None:
         timit_File_Path_List, timit_Text_List_Dict = TIMIT_Info_Load(timit_Path= argument_Dict['timit_path'])
         total_Pattern_Count += len(timit_File_Path_List)
+    if not argument_Dict['bc2013_path'] is None:
+        bc2013_File_Path_List, bc2013_Text_List_Dict = BC2013_Info_Load(bc2013_Path= argument_Dict['bc2013_path'])
+        total_Pattern_Count += len(bc2013_File_Path_List)
 
-    if total_Pattern_Count == 0:
-        raise ValueError('Total pattern count is zero.')
+    # if total_Pattern_Count == 0:
+    #     raise ValueError('Total pattern count is zero.')
     
     os.makedirs(hp_Dict['Train']['Pattern_Path'], exist_ok= True)
     total_Generated_Pattern_Count = 0
@@ -301,7 +330,6 @@ if __name__ == '__main__':
                     vctk_Text_Dict[file_Path],
                     token_Index_Dict,
                     'VCTK',
-                    False,
                     '',
                     'VCTK {:05d}/{:05d}    Total {:05d}/{:05d}'.format(
                         index,
@@ -321,7 +349,6 @@ if __name__ == '__main__':
                     ls_Text_Dict[file_Path],
                     token_Index_Dict,
                     'LS',
-                    True,
                     '',
                     'LS {:05d}/{:05d}    Total {:05d}/{:05d}'.format(
                         index,
@@ -341,11 +368,29 @@ if __name__ == '__main__':
                     timit_Text_List_Dict[file_Path],
                     token_Index_Dict,
                     'TIMIT',
-                    False,
                     '{}.'.format(file_Path.split('/')[-2]),
                     'TIMIT {:05d}/{:05d}    Total {:05d}/{:05d}'.format(
                         index,
                         len(timit_File_Path_List),
+                        total_Generated_Pattern_Count,
+                        total_Pattern_Count
+                        ),
+                    argument_Dict['all_save']
+                    )
+                total_Generated_Pattern_Count += 1
+
+        if not argument_Dict['bc2013_path'] is None:
+            for index, file_Path in enumerate(bc2013_File_Path_List):
+                pe.submit(
+                    Pattern_File_Generate,
+                    file_Path,
+                    bc2013_Text_List_Dict[file_Path],
+                    token_Index_Dict,
+                    'BC2013',
+                    '{}.'.format(file_Path.split('/')[-2]),
+                    'BC2013 {:05d}/{:05d}    Total {:05d}/{:05d}'.format(
+                        index,
+                        len(bc2013_File_Path_List),
                         total_Generated_Pattern_Count,
                         total_Pattern_Count
                         ),

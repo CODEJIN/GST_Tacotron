@@ -1,6 +1,6 @@
 import tensorflow as tf
 import json
-from Attention_Modules import DotProductAttention, BahdanauAttention, LocationSensitiveAttention, DynamicConvolutionAttention
+from Attention_Modules import DotProductAttention, BahdanauAttention, LocationSensitiveAttention, DynamicConvolutionAttention, BahdanauMonotonicAttention
 
 
 with open('Hyper_Parameters.json', 'r') as f:
@@ -169,19 +169,23 @@ class Tacotron_Decoder(tf.keras.Model):
         #     use_scale= True,
         #     cumulate_weights= True
         #     )
-        self.layer_Dict['Attention'] = DynamicConvolutionAttention(
+        # self.layer_Dict['Attention'] = DynamicConvolutionAttention(
+        #     size= hp_Dict['Tacotron']['Decoder']['Attention']['Size'],
+        #     f_conv_filters= 8,
+        #     f_conv_kernel_size= 21,
+        #     f_conv_stride= 1,
+        #     g_conv_filters= 8,
+        #     g_conv_kernel_size= 21,
+        #     g_conv_stride= [1, 1, 1, 1],
+        #     p_conv_size = 11,
+        #     p_alpha= 0.1,
+        #     p_beta = 0.9,   
+        #     use_scale= True,
+        #     cumulate_weights= False
+        #     )
+        self.layer_Dict['Attention'] = DotProductAttention(
             size= hp_Dict['Tacotron']['Decoder']['Attention']['Size'],
-            f_conv_filters= 8,
-            f_conv_kernel_size= 21,
-            f_conv_stride= 1,
-            g_conv_filters= 8,
-            g_conv_kernel_size= 21,
-            g_conv_stride= [1, 1, 1, 1],
-            p_conv_size = 11,
-            p_alpha= 0.1,
-            p_beta = 0.9,   
-            use_scale= True,
-            cumulate_weights= True
+            use_scale= True
             )
 
         for index, size in enumerate(hp_Dict['Tacotron']['Decoder']['Post_RNN']['Size']):

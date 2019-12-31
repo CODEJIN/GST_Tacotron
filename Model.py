@@ -1,11 +1,13 @@
 import tensorflow as tf
 import numpy as np
-import json, os, time
+import json, os, time, argparse
 from threading import Thread
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from datetime import datetime
+
+from ProgressBar import progress
 
 from Feeder import Feeder
 import Modules
@@ -110,7 +112,8 @@ class GST_Tacotron:
             initial_learning_rate= hp_Dict['Train']['Initial_Learning_Rate'],
             decay_steps= 10000,
             decay_rate= 0.5,
-            staircase= True)
+            staircase= False
+            )
 
         self.optimizer = tf.keras.optimizers.Adam(
             learning_rate= learning_Rate,
@@ -137,7 +140,6 @@ class GST_Tacotron:
                 inputs= [mels, tokens, spectrograms],
                 training= True
                 )
-
             mel_Loss = tf.reduce_mean(tf.abs(mels[:, 1:] - mel_Logits), axis= -1)
             spectrogram_Loss = tf.reduce_mean(tf.abs(spectrograms[:, 1:] - spectrogram_Logits), axis= -1)
             if hp_Dict['Train']['Use_L2_Loss']:
@@ -170,9 +172,11 @@ class GST_Tacotron:
 
         mels = tf.zeros(shape=[tf.shape(initial_mels)[0], 0, hp_Dict['Sound']['Mel_Dim']], dtype= tf.float32)
         for step in range(hp_Dict['Tacotron']['Decoder']['Max_Step'] // hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction']):
-            print('{} / {}'.format(step, hp_Dict['Tacotron']['Decoder']['Max_Step'] // hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction']))
             mels = tf.concat([initial_mels, mels], axis= 1)
-            mels, spectrograms, attention_Histories = self.model_Dict['Inference', 'Decoder']([encoder_Tensor, mels])            
+            mels, spectrograms, attention_Histories = self.model_Dict['Inference', 'Decoder']([encoder_Tensor, mels])
+
+            progress(step + 1, hp_Dict['Tacotron']['Decoder']['Max_Step'] // hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'], status='Inference...')
+        print()
 
         return mels, spectrograms, attention_Histories
 
@@ -186,10 +190,11 @@ class GST_Tacotron:
         self.model_Dict['Train'].load_weights(checkpoint_File_Path)
         print('Checkpoint \'{}\' is loaded.'.format(checkpoint_File_Path))
 
-    def Train(self):
+    def Train(self, initial_Step= 0):
         def Save_Checkpoint():
             os.makedirs(os.path.join(hp_Dict['Checkpoint_Path']).replace("\\", "/"), exist_ok= True)
             self.model_Dict['Train'].save_weights(os.path.join(hp_Dict['Checkpoint_Path'], 'CHECKPOINT.H5').replace('\\', '/'))
+
         def Run_Inference():
             sentence_List = []
             with open('Inference_Sentence_for_Training.txt', 'r') as f:
@@ -206,25 +211,28 @@ class GST_Tacotron:
 
             self.Inference(sentence_List, wav_List_for_GST)
 
-        step = 0
+        self.optimizer.iterations.assign(initial_Step)
+
         Save_Checkpoint()
         Run_Inference()
         while True:
             start_Time = time.time()
 
             loss = self.Train_Step(**self.feeder.Get_Pattern())
-            step += 1
+            if np.isnan(loss):
+                raise ValueError('NaN loss')
             display_List = [
                 'Time: {:0.3f}'.format(time.time() - start_Time),
-                'Step: {}'.format(step),
+                'Step: {}'.format(self.optimizer.iterations.numpy()),
+                'LR: {:0.8f}'.format(self.optimizer.lr(self.optimizer.iterations.numpy() - 1)),
                 'Loss: {:0.5f}'.format(loss)
                 ]
             print('\t\t'.join(display_List))
 
-            if step % hp_Dict['Train']['Checkpoint_Save_Timing'] == 0:
+            if self.optimizer.iterations.numpy() % hp_Dict['Train']['Checkpoint_Save_Timing'] == 0:
                 Save_Checkpoint()
             
-            if step % hp_Dict['Train']['Inference_Timing'] == 0:
+            if self.optimizer.iterations.numpy() % hp_Dict['Train']['Inference_Timing'] == 0:
                 Run_Inference()
 
     def Inference(self, sentence_List, wav_List_for_GST= None, label= None):
@@ -298,6 +306,9 @@ class GST_Tacotron:
                 )
 
 if __name__ == '__main__':
+    argParser = argparse.ArgumentParser()
+    argParser.add_argument("-s", "--start_step", required=False)
+
     new_Model = GST_Tacotron(is_Training= True)
     new_Model.Restore()
-    new_Model.Train()
+    new_Model.Train(initial_Step= int(vars(argParser.parse_args())['start_step']) or 0)
