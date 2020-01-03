@@ -15,13 +15,12 @@ BahdanauAttention
 LocationSensitiveAttention
 
 Failed yet:
-DynamicConvolutionAttention
+DynamicConvolutionAttention -> Score/apply score 계산에서 score dimension을 다시 살펴볼 것.....
 
 Testing:
 BahdanauMonotonicAttention
 
 Not yet:
-
 StepwiseMonotonicAttention
 '''
 
@@ -360,49 +359,56 @@ class BahdanauMonotonicAttention(tf.keras.layers.AdditiveAttention):
         self,
         size,
         sigmoid_noise= 0.0,
-        use_scale=False,
+        normalize= False,
         **kwargs
         ):
-        super(BahdanauMonotonicAttention, self).__init__(use_scale= use_scale, **kwargs)
+        super(BahdanauMonotonicAttention, self).__init__(use_scale= True, **kwargs)
         
         self.size = size
         self.sigmoid_noise = sigmoid_noise
-        self.layer_Dict = {
-            'Query': tf.keras.layers.Dense(size),
-            'Value': tf.keras.layers.Dense(size),
-            'Key': tf.keras.layers.Dense(size)
-            }
+        self.normalize = normalize
 
     def build(self, input_shape):
-        """Creates scale and bias variable if use_scale==True."""
-        if self.use_scale:
-            self.scale = self.add_weight(
-                name='scale',
-                shape=[self.size],
-                initializer= tf.initializers.glorot_uniform(),
-                dtype=self.dtype,
-                trainable=True)            
-        else:
-            self.scale = None
+        self.layer_Dict = {
+            'Query': tf.keras.layers.Dense(self.size),
+            'Value': tf.keras.layers.Dense(self.size),
+            'Key': tf.keras.layers.Dense(self.size)
+            }
 
-        self.bias = self.add_weight(
-            name='bias',
+        self.attention_v = self.add_weight(
+            name='attention_v',
             shape=[self.size,],
-            initializer=tf.zeros_initializer(),
+            initializer='glorot_uniform',
             dtype=self.dtype,
             trainable=True
             )
 
-        self.score_bias = self.add_weight(
-            name='score_bias',
+        self.attention_score_bias = self.add_weight(
+            name='attention_score_bias',
             shape=[],
             initializer=tf.zeros_initializer(),
             dtype=self.dtype,
             trainable=True
             )
 
+        if self.normalize:
+            self.attention_g = self.add_weight(
+                name='attention_g',
+                shape=[],
+                initializer= tf.initializers.constant([np.sqrt(1. / self.size),]),
+                dtype=self.dtype,
+                trainable=True
+                )
+
+            self.attention_b = self.add_weight(
+                name='attention_b',
+                shape=[self.size,],
+                initializer= tf.zeros_initializer(),
+                dtype=self.dtype,
+                trainable=True
+                )
+
         self.bulit = True
-        #super(LocationSensitiveAttention, self).build(input_shape)
 
     def call(self, inputs):
         '''
@@ -427,9 +433,9 @@ class BahdanauMonotonicAttention(tf.keras.layers.AdditiveAttention):
         initial_Step = tf.constant(0)
         def body(step, query, contexts, alignments):
             query_Step = tf.expand_dims(query[:, step], axis= 1) #[Batch, 1, Att_dim]            
-            previous_alignment = alignments[:, -1]
+            previous_alignment = tf.expand_dims(alignments[:, -1], axis= 1) #[Batch, 1, T_k]
 
-            score = self._calculate_scores(query= query_Step, key= key) + self.score_bias   #[Batch, T_k]
+            score = self._calculate_scores(query= query_Step, key= key)   #[Batch, T_k]            
             context, alignment  = self._apply_scores(score= score, value= value, previous_alignment= previous_alignment) #[Batch, Att_dim], [Batch, T_v]
 
             return step + 1, query, tf.concat([contexts, context], axis= 1),  tf.concat([alignments, alignment], axis= 1)
@@ -452,38 +458,40 @@ class BahdanauMonotonicAttention(tf.keras.layers.AdditiveAttention):
         Returns:
         Tensor of shape `[batch_size, T_k]`.
         """
-        if self.use_scale:
-            scale = self.scale
+        if self.normalize:
+            norm_v = self.attention_g * self.attention_v * tf.math.rsqrt(tf.reduce_sum(tf.square(self.attention_v)))
+            return tf.reduce_sum(norm_v * tf.tanh(query + key + self.attention_b), axis= -1) + self.attention_score_bias   #[Batch, T_k, Att_dim] -> [Batch, T_k]
         else:
-            scale = 1.
-
-        return tf.reduce_sum(scale * tf.tanh(query + key + self.bias), axis=-1)    #[Batch, T_k, Att_dim] -> [Batch, T_k]
+            return tf.reduce_sum(self.attention_v * tf.tanh(query + key), axis= -1) + self.attention_score_bias   #[Batch, T_k, Att_dim] -> [Batch, T_k]
 
     #In TF1, 'context' is calculated in AttentionWrapper, not attention mechanism.
     def _apply_scores(self, score, value, previous_alignment):
         '''
-        score shape: [batch_size, T_k]`.
+        score shape: [batch_size, T_v]`.    (Must T_k == T_v)
         value shape: [batch_size, T_v, Att_dim]`.
-        Must T_k == T_v
+        previous_alignment shape: [batch_size, 1, T_v]`.
+        
 
         Return: [batch_size, Att_dim]
         '''
         score = tf.expand_dims(score, axis= 1)  #[Batch_size, 1, T_v]        
         alignment = self._monotonic_probability_fn(score, previous_alignment)   #[Batch_size, 1, T_v]
         context = tf.matmul(alignment, value)   #[Batch_size, 1, Att_dim]
-
-        #return tf.squeeze(context, axis= 1), tf.squeeze(alignment, axis= 1),   #[Batch, Att_dim], [Batch, T_v]
+        
         return context, alignment
 
     def _monotonic_probability_fn(self, score, previous_alignment):
         if self.sigmoid_noise > 0.0:
-            score += self.sigmoid_noise * tf.random.normal(tf.shape(score), dtype= score.dtype)        
+            score += self.sigmoid_noise * tf.random.normal(tf.shape(score), dtype= score.dtype)
         p_choose_i = tf.sigmoid(score)
-        cumprod_1mp_choose_i = self.safe_cumprod(1 - p_choose_i, axis= 1, exclusive= True)
+
+        cumprod_1mp_choose_i = self.safe_cumprod(1 - p_choose_i, axis= 2, exclusive= True)
+
         alignment = p_choose_i * cumprod_1mp_choose_i * tf.cumsum(
             previous_alignment / tf.clip_by_value(cumprod_1mp_choose_i, 1e-10, 1.),
-            axis= 1
+            axis= 2
             )
+
         return alignment
 
     # https://github.com/tensorflow/addons/blob/9e9031133c8362fedf40f2d05f00334b6f7a970b/tensorflow_addons/seq2seq/attention_wrapper.py#L810
@@ -501,143 +509,39 @@ class BahdanauMonotonicAttention(tf.keras.layers.AdditiveAttention):
         Returns:
         Cumulative product of x.
         """
-        x = tf.convert_to_tensor(x, name="x")
+        x = tf.convert_to_tensor(x, name='x')
         tiny = np.finfo(x.dtype.as_numpy_dtype).tiny
         return tf.exp(tf.cumsum(tf.math.log(tf.clip_by_value(x, tiny, 1)), *args, **kwargs))
 
-class StepwiseMonotonicAttention(tf.keras.layers.AdditiveAttention):
+class StepwiseMonotonicAttention(BahdanauMonotonicAttention):
     '''
-    Refer: https://gist.github.com/dy-octa/38a7638f75c21479582d7391490df37c
+    Refer: https://github.com/tensorflow/tensorflow/blob/r2.0/tensorflow/python/keras/layers/dense_attention.py#L307-L440
+    This is for attention size managing and getting the attention history(scores).
     '''
     def __init__(
         self,
         size,
         sigmoid_noise= 2.0,
-        use_scale=False,
+        normalize= False,
         **kwargs
         ):
-        super(StepwiseMonotonicAttention, self).__init__(use_scale= use_scale, **kwargs)
-        
-        self.size = size
-        self.sigmoid_noise = sigmoid_noise
-        self.layer_Dict = {
-            'Query': tf.keras.layers.Dense(size),
-            'Value': tf.keras.layers.Dense(size),
-            'Key': tf.keras.layers.Dense(size)
-            }
-
-    def build(self, input_shape):
-        """Creates scale and bias variable if use_scale==True."""
-        if self.use_scale:
-            self.scale = self.add_weight(
-                name='scale',
-                shape=[self.size],
-                initializer= tf.initializers.glorot_uniform(),
-                dtype=self.dtype,
-                trainable=True)            
-        else:
-            self.scale = None
-
-        self.bias = self.add_weight(
-            name='bias',
-            shape=[self.size,],
-            initializer=tf.zeros_initializer(),
-            dtype=self.dtype,
-            trainable=True
-            )
-
-        self.score_bias = self.add_weight(
-            name='score_bias',
-            shape=[],
-            initializer= tf.constant_initializer(3.5),
-            dtype=self.dtype,
-            trainable=True
-            )
-
-        self.bulit = True
-        #super(LocationSensitiveAttention, self).build(input_shape)
-
-    def call(self, inputs):
-        '''
-        inputs: [query, value] or [query, value, key]
-        I don't implement the mask function now.
-        '''
-        self._validate_call_args(inputs=inputs, mask= None)
-        query = self.layer_Dict['Query'](inputs[0])
-        value = self.layer_Dict['Value'](inputs[1])
-        key = self.layer_Dict['Key'](inputs[2]) if len(inputs) > 2 else value
-
-        contexts = tf.zeros(shape= [tf.shape(query)[0], 1, self.size])  #initial attention, [Batch, 1, Att_dim]
-        alignments = tf.expand_dims(
-            tf.one_hot(
-                indices= tf.zeros((tf.shape(query)[0]), dtype= tf.int32),
-                depth= tf.shape(key)[1],
-                dtype= tf.float32
-                ),
-            axis= 1
-            )   #initial alignment, [Batch, 1, T_k]. This part is different by monotonic or not.
-
-        initial_Step = tf.constant(0)
-        def body(step, query, contexts, alignments):
-            query_Step = tf.expand_dims(query[:, step], axis= 1) #[Batch, 1, Att_dim]            
-            previous_alignment = alignments[:, -1]
-
-            score = self._calculate_scores(query= query_Step, key= key) + self.score_bias   #[Batch, T_k]
-            context, alignment  = self._apply_scores(score= score, value= value, previous_alignment= previous_alignment) #[Batch, Att_dim], [Batch, T_v]
-
-            return step + 1, query, tf.concat([contexts, context], axis= 1),  tf.concat([alignments, alignment], axis= 1)
-
-        _, _, contexts, alignments = tf.while_loop(
-            cond= lambda step, query, contexts, alignments: tf.less(step, tf.shape(query)[1]),
-            body= body,
-            loop_vars= [initial_Step, query, contexts, alignments],
-            shape_invariants= [initial_Step.get_shape(), query.get_shape(), tf.TensorShape([None, None, self.size]), tf.TensorShape([None, None, None])]
-            )
-
-        return contexts[:, 1:], alignments[:, 1:]   #Remove initial step
-
-    def _calculate_scores(self, query, key):
-        """Calculates attention scores as a nonlinear sum of query and key.
-        Args:
-        query: Query tensor of shape `[batch_size, 1, Att_dim]`.
-        key: Key tensor of shape `[batch_size, T_k, Att_dim]`.
-        
-        Returns:
-        Tensor of shape `[batch_size, T_k]`.
-        """
-        if self.use_scale:
-            scale = self.scale
-        else:
-            scale = 1.
-
-        return tf.reduce_sum(scale * tf.tanh(query + key + self.bias), axis=-1)    #[Batch, T_k, Att_dim] -> [Batch, T_k]
-
-    #In TF1, 'context' is calculated in AttentionWrapper, not attention mechanism.
-    def _apply_scores(self, score, value, previous_alignment):
-        '''
-        score shape: [batch_size, T_k]`.
-        value shape: [batch_size, T_v, Att_dim]`.
-        Must T_k == T_v
-
-        Return: [batch_size, Att_dim]
-        '''
-        score = tf.expand_dims(score, axis= 1)  #[Batch_size, 1, T_v]        
-        alignment = self._monotonic_probability_fn(score, previous_alignment)   #[Batch_size, 1, T_v]
-        context = tf.matmul(alignment, value)   #[Batch_size, 1, Att_dim]
-
-        #return tf.squeeze(context, axis= 1), tf.squeeze(alignment, axis= 1),   #[Batch, Att_dim], [Batch, T_v]
-        return context, alignment
+        super(StepwiseMonotonicAttention, self).__init__(use_scale= True, **kwargs)
 
     def _monotonic_probability_fn(self, score, previous_alignment):
+        '''
+        score:  [Batch_size, 1, T_v]
+        previous_alignment: [batch_size, 1, T_v]
+        '''
         if self.sigmoid_noise > 0.0:
-            score += self.sigmoid_noise * tf.random.normal(tf.shape(score), dtype= score.dtype)        
-        p_choose_i = tf.sigmoid(score)
+            score += self.sigmoid_noise * tf.random.normal(tf.shape(score), dtype= score.dtype)
+        p_choose_i = tf.sigmoid(score)  # [Batch_size, 1, T_v]
 
-        pad = tf.zeros([tf.shape(p_choose_i)[0], 1], dtype=p_choose_i.dtype)
-        alignment = previous_alignment * p_choose_i + tf.concat(
-            [pad, previous_alignment[:, :-1] * (1.0 - p_choose_i[:, :-1])], axis=1)
+        pad = tf.zeros([tf.shape(p_choose_i)[0], 1, 1], dtype=p_choose_i.dtype)    # [Batch_size, 1, 1]
+        attention = previous_alignment * p_choose_i + tf.concat(
+            [pad, previous_alignment[:, :, :-1] * (1.0 - p_choose_i[:, :, :-1])], axis= -1)
 
-        return alignment
+        return attention
+
 
 class DynamicConvolutionAttention(tf.keras.layers.AdditiveAttention):
     '''

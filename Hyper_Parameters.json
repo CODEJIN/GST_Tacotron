@@ -11,7 +11,7 @@
     "Token_JSON_Path": "Token_Index_Dict.ENG.json",
 
     "GST": {
-        "Use": true,
+        "Use": false,
         "Reference_Encoder": {
             "Conv": {
                 "Filters": [32, 32, 64, 64, 128, 128],
@@ -135,6 +135,6 @@
         "Checkpoint_Save_Timing": 1000
     },
 
-    "Inference_Path": "/home/heejo/Documents/Results/GST_Taco.BMA/Inference",
-    "Checkpoint_Path": "/home/heejo/Documents/Results/GST_Taco.BMA/Checkpoint"
+    "Inference_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.BMA/Inference",
+    "Checkpoint_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.BMA/Checkpoint"
 }

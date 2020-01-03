@@ -183,9 +183,9 @@ class Tacotron_Decoder(tf.keras.Model):
         #     use_scale= True,
         #     cumulate_weights= False
         #     )
-        self.layer_Dict['Attention'] = DotProductAttention(
+        self.layer_Dict['Attention'] = BahdanauMonotonicAttention(
             size= hp_Dict['Tacotron']['Decoder']['Attention']['Size'],
-            use_scale= True
+            normalize= True
             )
 
         for index, size in enumerate(hp_Dict['Tacotron']['Decoder']['Post_RNN']['Size']):

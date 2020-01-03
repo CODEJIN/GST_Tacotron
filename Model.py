@@ -311,4 +311,4 @@ if __name__ == '__main__':
 
     new_Model = GST_Tacotron(is_Training= True)
     new_Model.Restore()
-    new_Model.Train(initial_Step= int(vars(argParser.parse_args())['start_step']) or 0)
+    new_Model.Train(initial_Step= int(vars(argParser.parse_args())['start_step'] or 0))

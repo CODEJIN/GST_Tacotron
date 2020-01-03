@@ -36,12 +36,12 @@ def Text_Filtering(text):
     else:
         return regex_Checker.findall(text)[0]
 
-def Mel_Generate(path, range_Ignore = False):
+def Mel_Generate(path, top_db= 60, range_Ignore = False):
     sig = librosa.core.load(
         path,
         sr = hp_Dict['Sound']['Sample_Rate']
         )[0]
-    sig = librosa.effects.trim(sig, top_db= 15)[0] * 0.99
+    sig = librosa.effects.trim(sig, top_db= top_db)[0] * 0.99
 
     sig_Length = sig.shape[0] / hp_Dict['Sound']['Sample_Rate'] * 1000  #ms
     if not range_Ignore and (sig_Length < hp_Dict['Train']['Min_Wav_Length'] or sig_Length > hp_Dict['Train']['Max_Wav_Length']):
@@ -57,12 +57,12 @@ def Mel_Generate(path, range_Ignore = False):
         max_abs_value= hp_Dict['Sound']['Max_Abs_Mel']
         ).astype(np.float32))
 
-def Spectrogram_Generate(path, range_Ignore = False):
+def Spectrogram_Generate(path, top_db= 60, range_Ignore = False):
     sig = librosa.core.load(
         path,
         sr = hp_Dict['Sound']['Sample_Rate']
         )[0]
-    sig = librosa.effects.trim(sig, top_db= 15)[0] * 0.99
+    sig = librosa.effects.trim(sig, top_db= top_db)[0] * 0.99
 
     sig_Length = sig.shape[0] / hp_Dict['Sound']['Sample_Rate'] * 1000  #ms
     if not range_Ignore and (sig_Length < hp_Dict['Train']['Min_Wav_Length'] or sig_Length > hp_Dict['Train']['Max_Wav_Length']):
@@ -76,14 +76,14 @@ def Spectrogram_Generate(path, range_Ignore = False):
         sample_rate= hp_Dict['Sound']['Sample_Rate']
         ).astype(np.float32))
 
-def Pattern_File_Generate(path, text, token_Index_Dict, dataset, file_Prefix='', display_Prefix = '', range_Ignore = False):
-    mel = Mel_Generate(path, range_Ignore)
+def Pattern_File_Generate(path, text, token_Index_Dict, dataset, file_Prefix='', display_Prefix = '', top_db= 60, range_Ignore = False):
+    mel = Mel_Generate(path, top_db, range_Ignore)
 
     if mel is None:
         print('[{}]'.format(display_Prefix), '{}'.format(path), '->', 'Ignored because of length.')
         return
     
-    spect = Spectrogram_Generate(path, range_Ignore)
+    spect = Spectrogram_Generate(path, top_db, range_Ignore)
 
     token = np.array(
         [token_Index_Dict['<S>']] + [token_Index_Dict[letter] for letter in text] + [token_Index_Dict['<E>']],
@@ -297,8 +297,8 @@ if __name__ == '__main__':
         bc2013_File_Path_List, bc2013_Text_List_Dict = BC2013_Info_Load(bc2013_Path= argument_Dict['bc2013_path'])
         total_Pattern_Count += len(bc2013_File_Path_List)
 
-    # if total_Pattern_Count == 0:
-    #     raise ValueError('Total pattern count is zero.')
+    if total_Pattern_Count == 0:
+        raise ValueError('Total pattern count is zero.')
     
     os.makedirs(hp_Dict['Train']['Pattern_Path'], exist_ok= True)
     total_Generated_Pattern_Count = 0
@@ -318,6 +318,7 @@ if __name__ == '__main__':
                         total_Generated_Pattern_Count,
                         total_Pattern_Count
                         ),
+                    60,
                     argument_Dict['all_save']
                     )
                 total_Generated_Pattern_Count += 1
@@ -337,6 +338,7 @@ if __name__ == '__main__':
                         total_Generated_Pattern_Count,
                         total_Pattern_Count
                         ),
+                    60,
                     argument_Dict['all_save']
                     )
                 total_Generated_Pattern_Count += 1
@@ -356,6 +358,7 @@ if __name__ == '__main__':
                         total_Generated_Pattern_Count,
                         total_Pattern_Count
                         ),
+                    60,
                     argument_Dict['all_save']
                     )
                 total_Generated_Pattern_Count += 1
@@ -375,6 +378,7 @@ if __name__ == '__main__':
                         total_Generated_Pattern_Count,
                         total_Pattern_Count
                         ),
+                    60,
                     argument_Dict['all_save']
                     )
                 total_Generated_Pattern_Count += 1
@@ -394,6 +398,7 @@ if __name__ == '__main__':
                         total_Generated_Pattern_Count,
                         total_Pattern_Count
                         ),
+                    60,
                     argument_Dict['all_save']
                     )
                 total_Generated_Pattern_Count += 1
