@@ -169,24 +169,24 @@ class Tacotron_Decoder(tf.keras.Model):
         #     use_scale= True,
         #     cumulate_weights= True
         #     )
-        # self.layer_Dict['Attention'] = DynamicConvolutionAttention(
-        #     size= hp_Dict['Tacotron']['Decoder']['Attention']['Size'],
-        #     f_conv_filters= 8,
-        #     f_conv_kernel_size= 21,
-        #     f_conv_stride= 1,
-        #     g_conv_filters= 8,
-        #     g_conv_kernel_size= 21,
-        #     g_conv_stride= [1, 1, 1, 1],
-        #     p_conv_size = 11,
-        #     p_alpha= 0.1,
-        #     p_beta = 0.9,   
-        #     use_scale= True,
-        #     cumulate_weights= False
-        #     )
-        self.layer_Dict['Attention'] = BahdanauMonotonicAttention(
+        self.layer_Dict['Attention'] = DynamicConvolutionAttention(
             size= hp_Dict['Tacotron']['Decoder']['Attention']['Size'],
-            normalize= True
+            f_conv_filters= 8,
+            f_conv_kernel_size= 21,
+            f_conv_stride= 1,
+            g_conv_filters= 8,
+            g_conv_kernel_size= 21,
+            g_conv_stride= [1, 1, 1, 1],
+            p_conv_size = 11,
+            p_alpha= 0.1,
+            p_beta = 0.9,   
+            use_scale= True,
+            cumulate_weights= False
             )
+        # self.layer_Dict['Attention'] = BahdanauMonotonicAttention(
+        #     size= hp_Dict['Tacotron']['Decoder']['Attention']['Size'],
+        #     normalize= True
+        #     )
 
         for index, size in enumerate(hp_Dict['Tacotron']['Decoder']['Post_RNN']['Size']):
             self.layer_Dict['Post_RNN_{}'.format(index)] = tf.keras.layers.LSTM(

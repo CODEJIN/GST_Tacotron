@@ -123,7 +123,7 @@
         "Min_Wav_Length": 500,
         "Max_Wav_Length": 10000,
         "Max_Pattern_Queue": 20,
-        "Initial_Learning_Rate": 5e-4,
+        "Initial_Learning_Rate": 1e-3,
         "Min_Learning_Rate": 1e-5,
         "ADAM": {
             "Beta1": 0.9,
@@ -135,6 +135,6 @@
         "Checkpoint_Save_Timing": 1000
     },
 
-    "Inference_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.BMA/Inference",
-    "Checkpoint_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.BMA/Checkpoint"
+    "Inference_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.DCA/Inference",
+    "Checkpoint_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.DCA/Checkpoint"
 }
