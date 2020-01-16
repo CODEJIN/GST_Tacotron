@@ -1,6 +1,6 @@
 import tensorflow as tf
 import json
-from Attention_Modules import DotProductAttention, BahdanauAttention, LocationSensitiveAttention, DynamicConvolutionAttention, BahdanauMonotonicAttention
+from Attention_Modules import DotProductAttention, BahdanauAttention, LocationSensitiveAttention, DynamicConvolutionAttention, BahdanauMonotonicAttention, StepwiseMonotonicAttention
 
 
 with open('Hyper_Parameters.json', 'r') as f:
@@ -169,24 +169,28 @@ class Tacotron_Decoder(tf.keras.Model):
         #     use_scale= True,
         #     cumulate_weights= True
         #     )
-        self.layer_Dict['Attention'] = DynamicConvolutionAttention(
-            size= hp_Dict['Tacotron']['Decoder']['Attention']['Size'],
-            f_conv_filters= 8,
-            f_conv_kernel_size= 21,
-            f_conv_stride= 1,
-            g_conv_filters= 8,
-            g_conv_kernel_size= 21,
-            g_conv_stride= [1, 1, 1, 1],
-            p_conv_size = 11,
-            p_alpha= 0.1,
-            p_beta = 0.9,   
-            use_scale= True,
-            cumulate_weights= False
-            )
+        # self.layer_Dict['Attention'] = DynamicConvolutionAttention(
+        #     size= hp_Dict['Tacotron']['Decoder']['Attention']['Size'],
+        #     f_conv_filters= 8,
+        #     f_conv_kernel_size= 21,
+        #     f_conv_stride= 1,
+        #     g_conv_filters= 8,
+        #     g_conv_kernel_size= 21,
+        #     g_conv_stride= [1, 1, 1, 1],
+        #     p_conv_size = 11,
+        #     p_alpha= 0.1,
+        #     p_beta = 0.9,   
+        #     use_scale= True,
+        #     cumulate_weights= False
+        #     )
         # self.layer_Dict['Attention'] = BahdanauMonotonicAttention(
         #     size= hp_Dict['Tacotron']['Decoder']['Attention']['Size'],
         #     normalize= True
         #     )
+        self.layer_Dict['Attention'] = StepwiseMonotonicAttention(
+            size= hp_Dict['Tacotron']['Decoder']['Attention']['Size'],
+            normalize= True
+            )
 
         for index, size in enumerate(hp_Dict['Tacotron']['Decoder']['Post_RNN']['Size']):
             self.layer_Dict['Post_RNN_{}'.format(index)] = tf.keras.layers.LSTM(
@@ -407,6 +411,43 @@ class Highwaynet(tf.keras.layers.Layer):
         t_Tensor = self.layer_Dict['Dense_Sigmoid'](inputs)
         
         return h_Tensor * t_Tensor + inputs * (1.0 - t_Tensor)
+
+
+
+
+class ExponentialDecay(tf.keras.optimizers.schedules.ExponentialDecay):
+
+    def __init__(
+        self,
+        initial_learning_rate,
+        decay_steps,
+        decay_rate,
+        min_learning_rate= None,
+        staircase=False,
+        name=None
+        ):    
+        super(ExponentialDecay, self).__init__(
+            initial_learning_rate= initial_learning_rate,
+            decay_steps= decay_steps,
+            decay_rate= decay_rate,
+            staircase= staircase,
+            name= name
+            )
+
+        self.min_learning_rate = min_learning_rate
+
+    def __call__(self, step):
+        learning_rate = super(ExponentialDecay, self).__call__(step)
+        if self.min_learning_rate is None:
+            return learning_rate
+
+        return tf.maximum(learning_rate, self.min_learning_rate)
+
+    def get_config(self):
+        config_dict = super(ExponentialDecay, self).get_config()
+        config_dict['min_learning_rate'] = self.min_learning_rate
+
+        return config_dict
 
 
 if __name__ == "__main__":

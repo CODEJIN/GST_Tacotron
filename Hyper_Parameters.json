@@ -135,6 +135,6 @@
         "Checkpoint_Save_Timing": 1000
     },
 
-    "Inference_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.DCA/Inference",
-    "Checkpoint_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.DCA/Checkpoint"
+    "Inference_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.SMA/Inference",
+    "Checkpoint_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.SMA/Checkpoint"
 }

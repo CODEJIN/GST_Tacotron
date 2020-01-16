@@ -525,7 +525,11 @@ class StepwiseMonotonicAttention(BahdanauMonotonicAttention):
         normalize= False,
         **kwargs
         ):
-        super(StepwiseMonotonicAttention, self).__init__(use_scale= True, **kwargs)
+        super(StepwiseMonotonicAttention, self).__init__(
+            size= size,
+            sigmoid_noise= sigmoid_noise,
+            normalize= normalize, **kwargs
+            )
 
     def _monotonic_probability_fn(self, score, previous_alignment):
         '''
@@ -558,7 +562,7 @@ class DynamicConvolutionAttention(tf.keras.layers.AdditiveAttention):
         g_conv_stride= [1, 1, 1, 1],
         p_conv_size = 11,
         p_alpha= 0.1,
-        p_beta = 0.9,        
+        p_beta = 2.9,        
         use_scale=False,
         cumulate_weights= False,
         **kwargs
