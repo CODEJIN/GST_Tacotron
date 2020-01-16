@@ -157,40 +157,55 @@ class Tacotron_Decoder(tf.keras.Model):
                 recurrent_dropout= hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Zoneout'], #Paper is '0.1'. However, TF2.0 cuDNN implementation does not support that yet.
                 return_sequences= True
                 )
-        # self.layer_Dict['Attention'] = DotProductAttention(
-        #     size= hp_Dict['Tacotron']['Decoder']['Attention']['Size'],
-        #     use_scale= True
-        #     )
-        # self.layer_Dict['Attention'] = LocationSensitiveAttention(
-        #     size= hp_Dict['Tacotron']['Decoder']['Attention']['Size'],
-        #     conv_filters= 32,
-        #     conv_kernel_size= 31,
-        #     conv_stride= 1,
-        #     use_scale= True,
-        #     cumulate_weights= True
-        #     )
-        # self.layer_Dict['Attention'] = DynamicConvolutionAttention(
-        #     size= hp_Dict['Tacotron']['Decoder']['Attention']['Size'],
-        #     f_conv_filters= 8,
-        #     f_conv_kernel_size= 21,
-        #     f_conv_stride= 1,
-        #     g_conv_filters= 8,
-        #     g_conv_kernel_size= 21,
-        #     g_conv_stride= [1, 1, 1, 1],
-        #     p_conv_size = 11,
-        #     p_alpha= 0.1,
-        #     p_beta = 0.9,   
-        #     use_scale= True,
-        #     cumulate_weights= False
-        #     )
-        # self.layer_Dict['Attention'] = BahdanauMonotonicAttention(
-        #     size= hp_Dict['Tacotron']['Decoder']['Attention']['Size'],
-        #     normalize= True
-        #     )
-        self.layer_Dict['Attention'] = StepwiseMonotonicAttention(
-            size= hp_Dict['Tacotron']['Decoder']['Attention']['Size'],
-            normalize= True
-            )
+
+        for index, (attention_Type, size) in enumerate(zip(
+            hp_Dict['Tacotron']['Decoder']['Attention']['Type'],
+            hp_Dict['Tacotron']['Decoder']['Attention']['Size']
+            )):
+            if attention_Type == 'DPA':
+                self.layer_Dict['Attention_{}'.format(index)] = DotProductAttention(
+                    size= size,
+                    use_scale= True
+                    )
+            elif attention_Type == 'BA':
+                self.layer_Dict['Attention_{}'.format(index)] = BahdanauAttention(
+                    size= size,
+                    use_scale= True
+                    )
+            elif attention_Type == 'BMA':
+                self.layer_Dict['Attention_{}'.format(index)] = BahdanauMonotonicAttention(
+                    size= size,
+                    use_scale= True
+                    )
+            elif attention_Type == 'SMA':
+                self.layer_Dict['Attention_{}'.format(index)] = StepwiseMonotonicAttention(
+                    size= size,
+                    normalize= True
+                    )
+            elif attention_Type == 'LSA':
+                self.layer_Dict['Attention_{}'.format(index)] = LocationSensitiveAttention(
+                    size= size,
+                    conv_filters= 32,
+                    conv_kernel_size= 31,
+                    conv_stride= 1,
+                    use_scale= True,
+                    cumulate_weights= True
+                    )
+            elif attention_Type == 'DCA':
+                self.layer_Dict['Attention_{}'.format(index)] = DynamicConvolutionAttention(
+                    size= size,
+                    f_conv_filters= 8,
+                    f_conv_kernel_size= 21,
+                    f_conv_stride= 1,
+                    g_conv_filters= 8,
+                    g_conv_kernel_size= 21,
+                    g_conv_stride= [1, 1, 1, 1],
+                    p_conv_size = 11,
+                    p_alpha= 0.1,
+                    p_beta = 0.9,   
+                    use_scale= True,
+                    cumulate_weights= False
+                    )
 
         for index, size in enumerate(hp_Dict['Tacotron']['Decoder']['Post_RNN']['Size']):
             self.layer_Dict['Post_RNN_{}'.format(index)] = tf.keras.layers.LSTM(
@@ -223,9 +238,14 @@ class Tacotron_Decoder(tf.keras.Model):
         for index in range(len(hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Size'])):
             new_Tensor = self.layer_Dict['Pre_RNN_{}'.format(index)](inputs=new_Tensor, training= training) + new_Tensor
 
-        attention_Tensor, history_Tensor = self.layer_Dict['Attention'](inputs= [new_Tensor, key])
+        attention_Tensor_List = []
+        history_Tensor_List = []
+        for index in range(len(hp_Dict['Tacotron']['Decoder']['Attention']['Type'])):
+            attention_Tensor, history_Tensor = self.layer_Dict['Attention_{}'.format(index)](inputs= [new_Tensor, key])
+            attention_Tensor_List.append(attention_Tensor)
+            history_Tensor_List.append(history_Tensor)
         
-        new_Tensor = tf.concat([new_Tensor, attention_Tensor], axis= -1)
+        new_Tensor = tf.concat([new_Tensor] + attention_Tensor_List, axis= -1)
 
         for index in range(len(hp_Dict['Tacotron']['Decoder']['Post_RNN']['Size'])):
             new_Tensor = self.layer_Dict['Post_RNN_{}'.format(index)](inputs= new_Tensor, training= training)
@@ -242,7 +262,7 @@ class Tacotron_Decoder(tf.keras.Model):
                 ]
             )   #[Batch, Time, Mels]
 
-        return new_Tensor, history_Tensor
+        return new_Tensor, history_Tensor_List
 
 class Vocoder_Taco1(tf.keras.Model):
     def __init__(self):

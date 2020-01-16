@@ -259,7 +259,7 @@ class GST_Tacotron:
                 sentence_List,
                 mels.numpy(),
                 spectrograms.numpy(),
-                attention_Histories.numpy(),
+                [x.numpy() for x in attention_Histories],
                 label or datetime.now().strftime("%Y%m%d.%H%M%S")
                 ]
             )
@@ -269,28 +269,31 @@ class GST_Tacotron:
     def Export_Inference(self, sentence_List, mel_List, spectrogram_List, attention_History_List, label):
         os.makedirs(os.path.join(hp_Dict['Inference_Path'], 'Plot').replace("\\", "/"), exist_ok= True)
         os.makedirs(os.path.join(hp_Dict['Inference_Path'], 'Wav').replace("\\", "/"), exist_ok= True)
-        
-        for index, (sentence, mel, spect, attention_History) in enumerate(
-            zip(sentence_List, mel_List, spectrogram_List, attention_History_List)
+        ##########
+        for index, (sentence, mel, spect, attention_Histories) in enumerate(
+            zip(sentence_List, mel_List, spectrogram_List, zip(*attention_History_List))
             ):
-            new_Figure = plt.figure(figsize=(24, 24), dpi=100)
-            plt.subplot2grid((4, 1), (0, 0))
+            history_Count = len(attention_Histories)
+
+            new_Figure = plt.figure(figsize=(24, 12 + 12 * history_Count), dpi=100)
+            plt.subplot2grid((2 * (history_Count + 1), 1), (0, 0))
             plt.imshow(np.transpose(mel), aspect='auto', origin='lower')
             plt.title('Mel    Sentence: {}'.format(sentence))
             plt.colorbar()
-            plt.subplot2grid((4, 1), (1, 0))
+            plt.subplot2grid((2 * (history_Count + 1), 1), (1, 0))
             plt.imshow(np.transpose(spect), aspect='auto', origin='lower')
             plt.title('Spectrogram    Sentence: {}'.format(sentence))
             plt.colorbar()
-            plt.subplot2grid((4, 1), (2, 0), rowspan=2)
-            plt.imshow(np.transpose(attention_History), aspect='auto', origin='lower')            
-            plt.title('Attention history    Sentence: {}'.format(sentence))
-            plt.yticks(
-                range(attention_History.shape[1]),
-                ['<S>'] + list(sentence) + ['<E>'],
-                fontsize = 10
-                )
-            plt.colorbar()
+            for history_Index, (attention_Type, attention_History) in enumerate(zip(hp_Dict['Tacotron']['Decoder']['Attention']['Type'], attention_Histories)):                
+                plt.subplot2grid((2 * (history_Count + 1), 1), (2 * (history_Index + 1), 0), rowspan=2)
+                plt.imshow(np.transpose(attention_History), aspect='auto', origin='lower')            
+                plt.title('Attention history    Type: {}    Sentence: {}'.format(attention_Type, sentence))
+                plt.yticks(
+                    range(attention_History.shape[1]),
+                    ['<S>'] + list(sentence) + ['<E>'],
+                    fontsize = 10
+                    )
+                plt.colorbar()
             
             plt.tight_layout()
             plt.savefig(

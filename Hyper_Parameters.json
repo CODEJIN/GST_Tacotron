@@ -78,14 +78,15 @@
                 "Zoneout": 0.0
             },
             "Attention": {
-                "Size": 256
+                "Type": ["SMA", "DCA"],
+                "Size": [256, 256]
             },
             "Post_RNN": {
                 "Size": [256],
                 "Zoneout": 0.0
             },
             "Inference_Step_Reduction": 3,
-            "Max_Step": 300
+            "Max_Step": 100
         }
     },
 
@@ -135,6 +136,6 @@
         "Checkpoint_Save_Timing": 1000
     },
 
-    "Inference_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.SMA/Inference",
-    "Checkpoint_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.SMA/Checkpoint"
+    "Inference_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.SMA&DCA/Inference",
+    "Checkpoint_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.SMA&DCA/Checkpoint"
 }
