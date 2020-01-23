@@ -600,10 +600,10 @@ class DynamicConvolutionAttention(tf.keras.layers.AdditiveAttention):
             use_bias= True,
             activation= 'tanh'
             )
-        self.layer_Dict['G_Filter_Dense_1'] = tf.keras.layers.Dense(
-            units= g_conv_kernel_size * g_conv_filters,
-            use_bias= False
-            )
+        # self.layer_Dict['G_Filter_Dense_1'] = tf.keras.layers.Dense(
+        #     units= g_conv_kernel_size * g_conv_filters,
+        #     use_bias= False
+        #     )
         self.layer_Dict['G_Dense'] = tf.keras.layers.Dense(
             size,
             use_bias= False
@@ -631,6 +631,14 @@ class DynamicConvolutionAttention(tf.keras.layers.AdditiveAttention):
         self.bias = self.add_weight(
             name='bias',
             shape=[self.size,],
+            initializer=tf.zeros_initializer(),
+            dtype=self.dtype,
+            trainable=True
+            )
+
+        self.g_scale = self.add_weight(
+            name='g_scale',
+            shape=[self.g_conv_kernel_size * self.g_conv_filters,],
             initializer=tf.zeros_initializer(),
             dtype=self.dtype,
             trainable=True
@@ -664,8 +672,8 @@ class DynamicConvolutionAttention(tf.keras.layers.AdditiveAttention):
             feature_previous_alignment = self.layer_Dict['F_Conv'](previous_alignment)    #[Batch, T_k, Filters]
             feature_previous_alignment = self.layer_Dict['F_Dense'](feature_previous_alignment)   #[Batch, T_k, Att_dim]
 
-            dynamic_filter = self.layer_Dict['G_Filter_Dense_0'](query_Step)    # [Batch, Conv_Size * Conv_Ch]
-            dynamic_filter = self.layer_Dict['G_Filter_Dense_1'](dynamic_filter)    # [Batch, Conv_Size * Conv_Ch]
+            dynamic_filter = self.g_scale * self.layer_Dict['G_Filter_Dense_0'](query_Step)    # [Batch, Conv_Size * Conv_Ch]
+            #dynamic_filter = self.layer_Dict['G_Filter_Dense_1'](dynamic_filter)    # [Batch, Conv_Size * Conv_Ch]
             dynamic_filter = tf.reshape(
                 dynamic_filter,
                 shape= [batch_size, 1, self.g_conv_kernel_size, self.g_conv_filters]

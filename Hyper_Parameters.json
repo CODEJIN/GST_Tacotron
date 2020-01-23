@@ -74,19 +74,19 @@
                 "Dropout_Rate": 0.5
             },
             "Pre_RNN": {                
-                "Size": [256, 256],
+                "Size": [512, 512],
                 "Zoneout": 0.0
             },
             "Attention": {
-                "Type": ["SMA", "DCA"],
-                "Size": [256, 256]
+                "Type": ["DCA"],
+                "Size": [512]
             },
             "Post_RNN": {
-                "Size": [256],
+                "Size": [512],
                 "Zoneout": 0.0
             },
             "Inference_Step_Reduction": 3,
-            "Max_Step": 100
+            "Max_Step": 450
         }
     },
 
@@ -136,6 +136,6 @@
         "Checkpoint_Save_Timing": 1000
     },
 
-    "Inference_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.SMA&DCA/Inference",
-    "Checkpoint_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.SMA&DCA/Checkpoint"
+    "Inference_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.DCA_g_scale/Inference",
+    "Checkpoint_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.DCA_g_scale/Checkpoint"
 }
