@@ -26,7 +26,7 @@
             }
         },
         "Style_Token": {
-            "Size": 12,
+            "Size": 64,
             "Attention": {
                 "Size": 128
             },
@@ -78,23 +78,23 @@
                 "Zoneout": 0.0
             },
             "Attention": {
-                "Type": ["SMA", "DCA"],
-                "Size": [256, 256]
+                "Type": ["DCA"],
+                "Size": [256]
             },
             "Post_RNN": {
                 "Size": [256],
                 "Zoneout": 0.0
             },
-            "Inference_Step_Reduction": 3,
-            "Max_Step": 100
+            "Inference_Step_Reduction": 4,
+            "Max_Step": 400
         }
     },
 
     "Vocoder_Taco1": {
         "CBHG": {
             "Conv_Bank": {
-                "Stack_Count": 16,
-                "Filters": 128
+                "Stack_Count": 8,
+                "Filters": 256
             },
             "Pool": {
                 "Pool_Size": 2,
@@ -117,14 +117,14 @@
     },
 
     "Train": {
-        "Pattern_Path": "/home/heejo/Documents/Pattern/GST.Pattern.LJ",
+        "Pattern_Path": "C:/Pattern/GST.Pattern.LJ",
         "Metadata_File": "METADATA.PICKLE",
-        "Batch_Size": 12,
+        "Batch_Size": 50,
         "Pattern_Sorting": true,
         "Min_Wav_Length": 500,
         "Max_Wav_Length": 10000,
         "Max_Pattern_Queue": 20,
-        "Initial_Learning_Rate": 1e-3,
+        "Initial_Learning_Rate": 2e-3,
         "Min_Learning_Rate": 1e-5,
         "ADAM": {
             "Beta1": 0.9,
@@ -136,6 +136,6 @@
         "Checkpoint_Save_Timing": 1000
     },
 
-    "Inference_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.SMA&DCA/Inference",
-    "Checkpoint_Path": "/home/heejo/Documents/Results/GST_Taco_without_GST.SMA&DCA/Checkpoint"
+    "Inference_Path": "D:/GST.Results/WO_GST.DCA/Inference",
+    "Checkpoint_Path": "D:/GST.Results/WO_GST.DCA/Checkpoint"
 }

@@ -187,7 +187,7 @@ def LJ_Info_Load(lj_Path):
     lj_Text_Dict = {}
 
     text_Dict = {}
-    with open(os.path.join(lj_Path, 'metadata.csv').replace('\\', '/'), 'r') as f:
+    with open(os.path.join(lj_Path, 'metadata.csv').replace('\\', '/'), 'r', encoding= 'utf-8') as f:
         readlines = f.readlines()
         
     for line in readlines:
@@ -277,6 +277,8 @@ if __name__ == '__main__':
     argParser.add_argument("-bc2013", "--bc2013_path", required=False)
     argParser.add_argument("-all", "--all_save", action='store_true') #When this parameter is False, only correct time range patterns are generated.
     argParser.set_defaults(all_save = False)
+    argParser.add_argument("-mw", "--max_worker", required=False)
+    argParser.set_defaults(max_worker = 10)
     argument_Dict = vars(argParser.parse_args())
     
     total_Pattern_Count = 0
@@ -302,7 +304,7 @@ if __name__ == '__main__':
     
     os.makedirs(hp_Dict['Train']['Pattern_Path'], exist_ok= True)
     total_Generated_Pattern_Count = 0
-    with PE(max_workers = max_Worker) as pe:
+    with PE(max_workers = int(argument_Dict['max_worker'])) as pe:
         if not argument_Dict['lj_path'] is None:            
             for index, file_Path in enumerate(lj_File_Path_List):
                 pe.submit(

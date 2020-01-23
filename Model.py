@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import json, os, time, argparse
+os.environ["CUDA_VISIBLE_DEVICES"]= "0"
 from threading import Thread
 import matplotlib
 matplotlib.use('agg')
@@ -107,13 +108,6 @@ class GST_Tacotron:
         self.model_Dict['Inference', 'Encoder'].summary()
         self.model_Dict['Inference', 'Decoder'].summary()
 
-        #optimizer는 @tf.function의 밖에 있어야 함
-        # learning_Rate = tf.keras.optimizers.schedules.ExponentialDecay(
-        #     initial_learning_rate= hp_Dict['Train']['Initial_Learning_Rate'],
-        #     decay_steps= 10000,
-        #     decay_rate= 0.5,
-        #     staircase= False
-        #     )
         learning_Rate = Modules.ExponentialDecay(
             initial_learning_rate= hp_Dict['Train']['Initial_Learning_Rate'],
             decay_steps= 10000,
@@ -129,25 +123,25 @@ class GST_Tacotron:
             epsilon= hp_Dict['Train']['ADAM']['Epsilon'],
             )
 
-    @tf.function(
-        input_signature=[
-            tf.TensorSpec(shape=[None, None, hp_Dict['Sound']['Mel_Dim']], dtype=tf.float32),
-            tf.TensorSpec(shape=[None,], dtype=tf.int32),
-            tf.TensorSpec(shape=[None, None], dtype=tf.int32),
-            tf.TensorSpec(shape=[None,], dtype=tf.int32),
-            tf.TensorSpec(shape=[None, None, hp_Dict['Sound']['Spectrogram_Dim']], dtype=tf.float32),
-            tf.TensorSpec(shape=[None,], dtype=tf.int32)
-            ],
-        autograph= True,
-        experimental_relax_shapes= True
-        )
+    # @tf.function(
+    #     input_signature=[
+    #         tf.TensorSpec(shape=[None, None, hp_Dict['Sound']['Mel_Dim']], dtype=tf.float32),
+    #         tf.TensorSpec(shape=[None,], dtype=tf.int32),
+    #         tf.TensorSpec(shape=[None, None], dtype=tf.int32),
+    #         tf.TensorSpec(shape=[None,], dtype=tf.int32),
+    #         tf.TensorSpec(shape=[None, None, hp_Dict['Sound']['Spectrogram_Dim']], dtype=tf.float32),
+    #         tf.TensorSpec(shape=[None,], dtype=tf.int32)
+    #         ],
+    #     autograph= False,
+    #     experimental_relax_shapes= False
+    #     )
     def Train_Step(self, mels, mel_lengths, tokens, token_lengths, spectrograms, spectrogram_lengths):
         with tf.GradientTape() as tape:
             mel_Logits, spectrogram_Logits = self.model_Dict['Train'](
                 inputs= [mels, tokens, spectrograms],
                 training= True
                 )
-            mel_Loss = tf.reduce_mean(tf.abs(mels[:, 1:] - mel_Logits), axis= -1)
+            mel_Loss = tf.reduce_mean(tf.abs(mels[:, 1:] - mel_Logits), axis= -1)            
             spectrogram_Loss = tf.reduce_mean(tf.abs(spectrograms[:, 1:] - spectrogram_Logits), axis= -1)
             if hp_Dict['Train']['Use_L2_Loss']:
                 mel_Loss += tf.reduce_mean(tf.pow(mels[:, 1:] - mel_Logits, 2), axis= -1)
@@ -221,7 +215,7 @@ class GST_Tacotron:
         self.optimizer.iterations.assign(initial_Step)
 
         Save_Checkpoint()
-        Run_Inference()
+        # Run_Inference()
         while True:
             start_Time = time.time()
 
@@ -232,7 +226,8 @@ class GST_Tacotron:
                 'Time: {:0.3f}'.format(time.time() - start_Time),
                 'Step: {}'.format(self.optimizer.iterations.numpy()),
                 'LR: {:0.8f}'.format(self.optimizer.lr(self.optimizer.iterations.numpy() - 1)),
-                'Loss: {:0.5f}'.format(loss)
+                'Loss: {:0.5f}'.format(loss),
+                'QC: {}'.format(len(self.feeder.pattern_Queue)),
                 ]
             print('\t\t'.join(display_List))
 
