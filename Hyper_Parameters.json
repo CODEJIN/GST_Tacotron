@@ -74,7 +74,7 @@
                 "Dropout_Rate": 0.5
             },
             "Pre_RNN": {                
-                "Size": [256, 256],
+                "Size": [512, 512],
                 "Zoneout": 0.0
             },
             "Attention": {
@@ -82,7 +82,7 @@
                 "Size": [256]
             },
             "Post_RNN": {
-                "Size": [256],
+                "Size": [512],
                 "Zoneout": 0.0
             },
             "Inference_Step_Reduction": 4,
