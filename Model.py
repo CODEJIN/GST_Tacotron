@@ -214,8 +214,8 @@ class GST_Tacotron:
 
         self.optimizer.iterations.assign(initial_Step)
 
-        Save_Checkpoint()
-        # Run_Inference()
+        Save_Checkpoint()        
+        Run_Inference()
         while True:
             start_Time = time.time()
 

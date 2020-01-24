@@ -103,6 +103,8 @@ class GST_Concated_Encoder(tf.keras.layers.Layer):
 class Tacotron_Encoder(tf.keras.Model):
     def __init__(self):
         super(Tacotron_Encoder, self).__init__()
+
+    def build(self, input_shapes):
         self.layer_Dict = {}
         self.layer_Dict['Embedding'] = tf.keras.layers.Embedding(
             input_dim= len(token_Index_Dict),
@@ -113,7 +115,6 @@ class Tacotron_Encoder(tf.keras.Model):
             dropout_rate= hp_Dict['Tacotron']['Encoder']['Prenet']['Dropout_Rate']
             )
         self.layer_Dict['CBHG'] = CBHG(
-            input_size= hp_Dict['Tacotron']['Encoder']['Prenet']['Size'][-1],
             convbank_stack_count= hp_Dict['Tacotron']['Encoder']['CBHG']['Conv_Bank']['Stack_Count'],
             convbank_filters= hp_Dict['Tacotron']['Encoder']['CBHG']['Conv_Bank']['Filters'],
             pool_size= hp_Dict['Tacotron']['Encoder']['CBHG']['Pool']['Pool_Size'],
@@ -125,6 +126,8 @@ class Tacotron_Encoder(tf.keras.Model):
             rnn_size= hp_Dict['Tacotron']['Encoder']['CBHG']['RNN']['Size'],
             rnn_zoneout_rate= hp_Dict['Tacotron']['Encoder']['CBHG']['RNN']['Zoneout'],
             )
+
+        self.bulit = True
 
     def call(self, inputs, training= False):        
         '''
@@ -139,17 +142,20 @@ class Tacotron_Encoder(tf.keras.Model):
 class Tacotron_Decoder(tf.keras.Model):
     def __init__(self):
         super(Tacotron_Decoder, self).__init__()
+
+    def build(self, input_shapes):        
         self.layer_Dict = {}
-        self.layer_Dict['Prenet'] = Prenet(
+        self.layer_Dict['Prenet'] = tf.keras.Sequential()
+        self.layer_Dict['Prenet'].add(Prenet(
             sizes= hp_Dict['Tacotron']['Decoder']['Prenet']['Size'],
             dropout_rate= hp_Dict['Tacotron']['Decoder']['Prenet']['Dropout_Rate']
-            )        
+            ))
 
         if hp_Dict['Tacotron']['Decoder']['Prenet']['Size'][-1] != hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Size'][0]:
-            self.layer_Dict['Correction_for_Residual'] = tf.keras.layers.Dense(
+            self.layer_Dict['Prenet'].add(tf.keras.layers.Dense(
                 units= hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Size'][0],
                 activation= 'relu'
-                )
+                ))
         
         for index, size in enumerate(hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Size']):
             self.layer_Dict['Pre_RNN_{}'.format(index)] = tf.keras.layers.LSTM(
@@ -207,16 +213,19 @@ class Tacotron_Decoder(tf.keras.Model):
                     cumulate_weights= False
                     )
 
+        self.layer_Dict['Post_RNN'] = tf.keras.Sequential()
         for index, size in enumerate(hp_Dict['Tacotron']['Decoder']['Post_RNN']['Size']):
-            self.layer_Dict['Post_RNN_{}'.format(index)] = tf.keras.layers.LSTM(
+            self.layer_Dict['Post_RNN'].add(tf.keras.layers.LSTM(
                 units= size,
                 recurrent_dropout= hp_Dict['Tacotron']['Decoder']['Post_RNN']['Zoneout'], #Paper is '0.1'. However, TF2.0 cuDNN implementation does not support that yet.
                 return_sequences= True
-                )
+                ))
 
         self.layer_Dict['Projection'] = tf.keras.layers.Dense(
             units= hp_Dict['Sound']['Mel_Dim'] * hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction']
             )
+
+        self.built = True
 
     def call(self, inputs, training= False):
         '''
@@ -230,11 +239,7 @@ class Tacotron_Decoder(tf.keras.Model):
             false_fn= lambda: mels[:, 0::hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'], :]
             )
         new_Tensor = self.layer_Dict['Prenet'](inputs= new_Tensor, training= training)
-        
-        if hp_Dict['Tacotron']['Decoder']['Prenet']['Size'][-1] != hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Size'][0]:
-            new_Tensor = self.layer_Dict['Correction_for_Residual'](inputs= new_Tensor)
 
-        
         for index in range(len(hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Size'])):
             new_Tensor = self.layer_Dict['Pre_RNN_{}'.format(index)](inputs=new_Tensor, training= training) + new_Tensor
 
@@ -247,8 +252,7 @@ class Tacotron_Decoder(tf.keras.Model):
         
         new_Tensor = tf.concat([new_Tensor] + attention_Tensor_List, axis= -1)
 
-        for index in range(len(hp_Dict['Tacotron']['Decoder']['Post_RNN']['Size'])):
-            new_Tensor = self.layer_Dict['Post_RNN_{}'.format(index)](inputs= new_Tensor, training= training)
+        new_Tensor = self.layer_Dict['Post_RNN'](inputs= new_Tensor, training= training)
 
         new_Tensor = self.layer_Dict['Projection'](new_Tensor)  #[Batch, Time/Reduction, Mels*Reduction]
 
@@ -267,9 +271,10 @@ class Tacotron_Decoder(tf.keras.Model):
 class Vocoder_Taco1(tf.keras.Model):
     def __init__(self):
         super(Vocoder_Taco1, self).__init__()
+
+    def build(self, input_shapes):
         self.layer_Dict = {}
         self.layer_Dict['CBHG'] = CBHG(
-            input_size= hp_Dict['Sound']['Mel_Dim'],
             convbank_stack_count= hp_Dict['Vocoder_Taco1']['CBHG']['Conv_Bank']['Stack_Count'],
             convbank_filters= hp_Dict['Vocoder_Taco1']['CBHG']['Conv_Bank']['Filters'],
             pool_size= hp_Dict['Vocoder_Taco1']['CBHG']['Pool']['Pool_Size'],
@@ -285,37 +290,38 @@ class Vocoder_Taco1(tf.keras.Model):
             units= hp_Dict['Sound']['Spectrogram_Dim']
             )
 
+        self.built = True
+
     def call(self, inputs, training= False):
         new_Tensor = self.layer_Dict['CBHG'](inputs= inputs, training= training)
         return self.layer_Dict['Dense'](inputs= new_Tensor)
-
 
 class Prenet(tf.keras.layers.Layer):
     def __init__(self, sizes, dropout_rate):
         super(Prenet, self).__init__()
         self.prenet_Count = len(sizes)
-        self.layer_Dict = {}
-        for index, size in enumerate(sizes):
-            self.layer_Dict['Dense_{}'.format(index)] = tf.keras.layers.Dense(
+        self.sizes = sizes
+        self.dropout_rate = dropout_rate
+
+    def build(self, input_shapes):
+        self.layer = tf.keras.Sequential()
+        for size in self.sizes:
+            self.layer.add(tf.keras.layers.Dense(
                 units= size,
                 activation='relu'
-                )
-            self.layer_Dict['Dropout_{}'.format(index)] = tf.keras.layers.Dropout(
-                rate= dropout_rate
-                )
+                ))
+            self.layer.add(tf.keras.layers.Dropout(
+                rate= self.dropout_rate
+                ))
+
+        self.built = True
 
     def call(self, inputs, training= False):
-        new_Tensor = inputs
-        for index in range(self.prenet_Count):
-            new_Tensor = self.layer_Dict['Dense_{}'.format(index)](inputs= new_Tensor)
-            new_Tensor = self.layer_Dict['Dropout_{}'.format(index)](inputs= new_Tensor, training= training)
-
-        return new_Tensor
+        return self.layer(inputs= inputs, training= training)
 
 class CBHG(tf.keras.layers.Layer):
     def __init__(
         self,
-        input_size,
         convbank_stack_count,
         convbank_filters,
         pool_size,
@@ -327,7 +333,6 @@ class CBHG(tf.keras.layers.Layer):
         rnn_size,
         rnn_zoneout_rate,
         ):
-        self.input_size = input_size
         self.convbank_stack_count = convbank_stack_count
         self.convbank_filters = convbank_filters
         self.pool_size = pool_size
@@ -340,16 +345,14 @@ class CBHG(tf.keras.layers.Layer):
         self.rnn_zoneout_rate = rnn_zoneout_rate
 
         super(CBHG, self).__init__()
+        
+    def build(self, input_shapes):
         self.layer_Dict = {}
 
-        for index in range(self.convbank_stack_count):
-            self.layer_Dict['ConvBank_{}'.format(index)] = tf.keras.layers.Conv1D(
-                filters= self.convbank_filters,
-                kernel_size= index + 1,
-                padding= 'same',
-                activation= 'relu'
-                )
-            self.layer_Dict['BN_ConvBank_{}'.format(index)] = tf.keras.layers.BatchNormalization()
+        self.layer_Dict['ConvBank'] = ConvBank(
+            stack_count= self.convbank_stack_count,
+            filters= self.convbank_filters
+            )
 
         self.layer_Dict['Max_Pooling'] = tf.keras.layers.MaxPool1D(
             pool_size= self.pool_size,
@@ -357,30 +360,33 @@ class CBHG(tf.keras.layers.Layer):
             padding='same'
             )
 
+        self.layer_Dict['Conv1D_Projection'] = tf.keras.Sequential()
         for index, (filters, kernel_Size) in enumerate(zip(
             self.project_conv_filters,
             self.project_conv_kernel_size
             )):
-            self.layer_Dict['Conv1D_{}'.format(index)] = tf.keras.layers.Conv1D(
+            self.layer_Dict['Conv1D_Projection'].add(tf.keras.layers.Conv1D(
                 filters= filters,
                 kernel_size= kernel_Size,
                 padding= 'same',
                 activation= 'relu' if index < len(self.project_conv_filters) - 1 else None
-                )
-            self.layer_Dict['BN_Conv1D_{}'.format(index)] = tf.keras.layers.BatchNormalization()
+                ))
+            self.layer_Dict['Conv1D_Projection'].add(tf.keras.layers.BatchNormalization())
 
-        if self.input_size != self.project_conv_filters[-1]:
-            self.layer_Dict['Correction_for_Residual_0'] = tf.keras.layers.Dense(
-                units= self.project_conv_filters[-1]
-                )
+        if input_shapes[-1] != self.project_conv_filters[-1]:
+            self.layer_Dict['Conv1D_Projection'].add(tf.keras.layers.Dense(
+                units= input_shapes[-1]
+                ))
 
-        for index in range(self.highwaynet_count):
-            self.layer_Dict['Highwaynet_{}'.format(index)] = Highwaynet(size= self.highwaynet_size)
-
-        if self.project_conv_filters[-1] != self.highwaynet_size:
-            self.layer_Dict['Correction_for_Residual_1'] = tf.keras.layers.Dense(
+        self.layer_Dict['Highwaynet'] = tf.keras.Sequential()
+        if input_shapes[-1] != self.highwaynet_size:
+            self.layer_Dict['Highwaynet'].add(tf.keras.layers.Dense(
                 units= self.highwaynet_size
-                )
+                ))
+        for index in range(self.highwaynet_count):
+            self.layer_Dict['Highwaynet'].add(Highwaynet(
+                size= self.highwaynet_size
+                ))
 
         self.layer_Dict['RNN'] = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(
             units= self.rnn_size,
@@ -388,30 +394,48 @@ class CBHG(tf.keras.layers.Layer):
             return_sequences= True
             ))
 
+        self.built = True
+
     def call(self, inputs, training= False):
         new_Tensor = inputs
-        for index in range(self.convbank_stack_count):
-            new_Tensor = self.layer_Dict['ConvBank_{}'.format(index)](inputs= new_Tensor)
-            new_Tensor = self.layer_Dict['BN_ConvBank_{}'.format(index)](inputs= new_Tensor, training= training)
         
+        new_Tensor = self.layer_Dict['ConvBank'](inputs= new_Tensor, training= training)
+
         new_Tensor = self.layer_Dict['Max_Pooling'](inputs= new_Tensor)
         
-        for index in range(len(self.project_conv_filters)):
-            new_Tensor = self.layer_Dict['Conv1D_{}'.format(index)](inputs= new_Tensor)
-            new_Tensor = self.layer_Dict['BN_Conv1D_{}'.format(index)](inputs= new_Tensor, training= training)
+        new_Tensor = self.layer_Dict['Conv1D_Projection'](inputs= new_Tensor, training= training)
+        new_Tensor = new_Tensor + inputs    # Residual
 
-        if self.input_size != self.project_conv_filters[-1]:
-            inputs = self.layer_Dict['Correction_for_Residual_0'](inputs= inputs)
-
-        new_Tensor = new_Tensor + inputs
-
-        if self.project_conv_filters[-1] != self.highwaynet_size:
-            new_Tensor = self.layer_Dict['Correction_for_Residual_1'](inputs= new_Tensor)
-
-        for index in range(self.highwaynet_count):
-            new_Tensor = self.layer_Dict['Highwaynet_{}'.format(index)](inputs= new_Tensor)
+        new_Tensor = self.layer_Dict['Highwaynet'](inputs= new_Tensor, training= training)
             
         return self.layer_Dict['RNN'](inputs= new_Tensor, training= training)
+
+class ConvBank(tf.keras.layers.Layer):
+    def __init__(self, stack_count, filters):
+        super(ConvBank, self).__init__() 
+
+        self.stack_count = stack_count
+        self.filters = filters
+
+    def build(self, input_shapes):
+        self.layer_Dict = {}       
+        for index in range(self.stack_count):
+            self.layer_Dict['ConvBank_{}'.format(index)] = tf.keras.Sequential()
+            self.layer_Dict['ConvBank_{}'.format(index)].add(tf.keras.layers.Conv1D(
+                filters= self.filters,
+                kernel_size= index + 1,
+                padding= 'same',
+                activation= 'relu'
+                ))
+            self.layer_Dict['ConvBank_{}'.format(index)].add(tf.keras.layers.BatchNormalization())
+
+        self.built = True
+
+    def call(self, inputs):
+        return tf.concat(
+            [self.layer_Dict['ConvBank_{}'.format(index)](inputs) for index in range(self.stack_count)],
+            axis= -1
+            )
 
 class Highwaynet(tf.keras.layers.Layer):
     def __init__(self, size):
@@ -431,9 +455,6 @@ class Highwaynet(tf.keras.layers.Layer):
         t_Tensor = self.layer_Dict['Dense_Sigmoid'](inputs)
         
         return h_Tensor * t_Tensor + inputs * (1.0 - t_Tensor)
-
-
-
 
 class ExponentialDecay(tf.keras.optimizers.schedules.ExponentialDecay):
 

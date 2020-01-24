@@ -63,7 +63,7 @@
                     "Size": 128
                 },
                 "RNN": {
-                    "Size": 256,
+                    "Size": 128,
                     "Zoneout": 0.0
                 }
             }
@@ -78,7 +78,7 @@
                 "Zoneout": 0.0
             },
             "Attention": {
-                "Type": ["DCA"],
+                "Type": ["SMA"],
                 "Size": [256]
             },
             "Post_RNN": {
