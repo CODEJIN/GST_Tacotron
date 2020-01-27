@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 import json, os, time, argparse
-os.environ["CUDA_VISIBLE_DEVICES"]= "0"
 from threading import Thread
 import matplotlib
 matplotlib.use('agg')
@@ -17,6 +16,9 @@ from scipy.io import wavfile
 
 with open('Hyper_Parameters.json', 'r') as f:
     hp_Dict = json.load(f)
+
+if not hp_Dict['Device'] is None:
+    os.environ["CUDA_VISIBLE_DEVICES"]= hp_Dict['Device']
 
 class GST_Tacotron:
     def __init__(self, is_Training= False):
@@ -227,7 +229,6 @@ class GST_Tacotron:
                 'Step: {}'.format(self.optimizer.iterations.numpy()),
                 'LR: {:0.8f}'.format(self.optimizer.lr(self.optimizer.iterations.numpy() - 1)),
                 'Loss: {:0.5f}'.format(loss),
-                'QC: {}'.format(len(self.feeder.pattern_Queue)),
                 ]
             print('\t\t'.join(display_List))
 

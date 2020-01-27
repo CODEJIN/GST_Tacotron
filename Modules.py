@@ -151,18 +151,14 @@ class Tacotron_Decoder(tf.keras.Model):
             dropout_rate= hp_Dict['Tacotron']['Decoder']['Prenet']['Dropout_Rate']
             ))
 
-        if hp_Dict['Tacotron']['Decoder']['Prenet']['Size'][-1] != hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Size'][0]:
-            self.layer_Dict['Prenet'].add(tf.keras.layers.Dense(
-                units= hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Size'][0],
-                activation= 'relu'
-                ))
-        
-        for index, size in enumerate(hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Size']):
-            self.layer_Dict['Pre_RNN_{}'.format(index)] = tf.keras.layers.LSTM(
-                units= size,
-                recurrent_dropout= hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Zoneout'], #Paper is '0.1'. However, TF2.0 cuDNN implementation does not support that yet.
-                return_sequences= True
-                )
+        pre_RNN_Cell_List = [
+            tf.keras.layers.LSTMCell(units= size, recurrent_dropout= hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Zoneout'])  #Paper is '0.1'. However, TF2.0 cuDNN implementation does not support that yet.
+            for size in hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Size']
+            ]
+        self.layer_Dict['Pre_RNN'] = tf.keras.layers.RNN(
+            cell= pre_RNN_Cell_List,
+            return_sequences= True
+            )
 
         for index, (attention_Type, size) in enumerate(zip(
             hp_Dict['Tacotron']['Decoder']['Attention']['Type'],
@@ -213,13 +209,16 @@ class Tacotron_Decoder(tf.keras.Model):
                     cumulate_weights= False
                     )
 
-        self.layer_Dict['Post_RNN'] = tf.keras.Sequential()
-        for index, size in enumerate(hp_Dict['Tacotron']['Decoder']['Post_RNN']['Size']):
-            self.layer_Dict['Post_RNN'].add(tf.keras.layers.LSTM(
-                units= size,
+        self.layer_Dict['Correction'] = tf.keras.layers.Dense(
+            units= hp_Dict['Tacotron']['Decoder']['Post_RNN']['Size']
+            )
+        
+        for index in range(hp_Dict['Tacotron']['Decoder']['Post_RNN']['Count']):
+            self.layer_Dict['Post_RNN_{}'.format(index)] = tf.keras.layers.LSTM(
+                units= hp_Dict['Tacotron']['Decoder']['Post_RNN']['Size'],
                 recurrent_dropout= hp_Dict['Tacotron']['Decoder']['Post_RNN']['Zoneout'], #Paper is '0.1'. However, TF2.0 cuDNN implementation does not support that yet.
                 return_sequences= True
-                ))
+                )
 
         self.layer_Dict['Projection'] = tf.keras.layers.Dense(
             units= hp_Dict['Sound']['Mel_Dim'] * hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction']
@@ -240,8 +239,7 @@ class Tacotron_Decoder(tf.keras.Model):
             )
         new_Tensor = self.layer_Dict['Prenet'](inputs= new_Tensor, training= training)
 
-        for index in range(len(hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Size'])):
-            new_Tensor = self.layer_Dict['Pre_RNN_{}'.format(index)](inputs=new_Tensor, training= training) + new_Tensor
+        new_Tensor = self.layer_Dict['Pre_RNN'](inputs=new_Tensor, training= training)
 
         attention_Tensor_List = []
         history_Tensor_List = []
@@ -252,7 +250,10 @@ class Tacotron_Decoder(tf.keras.Model):
         
         new_Tensor = tf.concat([new_Tensor] + attention_Tensor_List, axis= -1)
 
-        new_Tensor = self.layer_Dict['Post_RNN'](inputs= new_Tensor, training= training)
+        new_Tensor = self.layer_Dict['Correction'](inputs= new_Tensor)
+
+        for index in range(hp_Dict['Tacotron']['Decoder']['Post_RNN']['Count']):
+            new_Tensor = self.layer_Dict['Post_RNN_{}'.format(index)](inputs= new_Tensor, training= training) + new_Tensor
 
         new_Tensor = self.layer_Dict['Projection'](new_Tensor)  #[Batch, Time/Reduction, Mels*Reduction]
 

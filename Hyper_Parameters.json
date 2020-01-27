@@ -74,7 +74,7 @@
                 "Dropout_Rate": 0.5
             },
             "Pre_RNN": {                
-                "Size": [512, 512],
+                "Size": [256],
                 "Zoneout": 0.0
             },
             "Attention": {
@@ -82,11 +82,12 @@
                 "Size": [256]
             },
             "Post_RNN": {
-                "Size": [512],
+                "Count": 2,
+                "Size": 256,
                 "Zoneout": 0.0
             },
             "Inference_Step_Reduction": 4,
-            "Max_Step": 400
+            "Max_Step": 520
         }
     },
 
@@ -113,7 +114,7 @@
                 "Zoneout": 0.0
             }
         },
-        "Griffin-Lim_Iter": 100
+        "Griffin-Lim_Iter": 60
     },
 
     "Train": {
@@ -123,7 +124,7 @@
         "Pattern_Sorting": true,
         "Min_Wav_Length": 500,
         "Max_Wav_Length": 10000,
-        "Max_Pattern_Queue": 20,
+        "Max_Pattern_Queue": 50,
         "Initial_Learning_Rate": 2e-3,
         "Min_Learning_Rate": 1e-5,
         "ADAM": {
@@ -131,11 +132,12 @@
             "Beta2": 0.999,
             "Epsilon": 1e-6
         },
-        "Use_L2_Loss": true,
+        "Use_L2_Loss": false,
         "Inference_Timing": 1000,
         "Checkpoint_Save_Timing": 1000
     },
 
-    "Inference_Path": "D:/GST.Results/WO_GST.DCA/Inference",
-    "Checkpoint_Path": "D:/GST.Results/WO_GST.DCA/Checkpoint"
+    "Inference_Path": "D:/GST.Results/WO_GST.SMA/Inference",
+    "Checkpoint_Path": "D:/GST.Results/WO_GST.SMA/Checkpoint",
+    "Device": "0"
 }
