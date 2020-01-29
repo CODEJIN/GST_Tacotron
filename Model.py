@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.keras.mixed_precision import experimental as mixed_precision
 import numpy as np
 import json, os, time, argparse
 from threading import Thread
@@ -20,6 +21,13 @@ with open('Hyper_Parameters.json', 'r') as f:
 if not hp_Dict['Device'] is None:
     os.environ["CUDA_VISIBLE_DEVICES"]= hp_Dict['Device']
 
+if hp_Dict['Use_Mixed_Precision']:    
+    policy = mixed_precision.Policy('mixed_float16')    
+else:
+    policy = mixed_precision.Policy('float32')
+mixed_precision.set_policy(policy)
+
+
 class GST_Tacotron:
     def __init__(self, is_Training= False):
         self.feeder = Feeder(is_Training= is_Training)
@@ -27,22 +35,22 @@ class GST_Tacotron:
 
     def Model_Generate(self):
         layer_Dict = {}
-        layer_Dict['Mel'] = tf.keras.layers.Input(shape=[None, hp_Dict['Sound']['Mel_Dim']], dtype= tf.float32)
+        layer_Dict['Mel'] = tf.keras.layers.Input(shape=[None, hp_Dict['Sound']['Mel_Dim']], dtype= tf.as_dtype(policy.compute_dtype))
         layer_Dict['Mel_Length'] = tf.keras.layers.Input(shape=[], dtype= tf.int32)
         layer_Dict['Token'] = tf.keras.layers.Input(shape=[None,], dtype= tf.int32)
         layer_Dict['Token_Length'] = tf.keras.layers.Input(shape=[], dtype= tf.int32)
-        layer_Dict['Spectrogram'] = tf.keras.layers.Input(shape=[None, hp_Dict['Sound']['Spectrogram_Dim']], dtype= tf.float32)        
+        layer_Dict['Spectrogram'] = tf.keras.layers.Input(shape=[None, hp_Dict['Sound']['Spectrogram_Dim']], dtype= tf.as_dtype(policy.compute_dtype))
         layer_Dict['Spectrogram_Length'] = tf.keras.layers.Input(shape=[], dtype= tf.int32)
         layer_Dict['Encoder'] = tf.keras.layers.Input(
             shape=[
                 None,
                 hp_Dict['Tacotron']['Encoder']['CBHG']['RNN']['Size'] * 2 + (hp_Dict['GST']['Style_Token']['Embedding']['Size'] if hp_Dict['GST']['Use'] else 0)
                 ],
-            dtype= tf.float32
+            dtype= tf.as_dtype(policy.compute_dtype)
             )        
         
         if hp_Dict['GST']['Use']:
-            # layer_Dict['Mel_for_GST'] = tf.keras.layers.Input(shape=[None, hp_Dict['Sound']['Mel_Dim']], dtype= tf.float32)
+            # layer_Dict['Mel_for_GST'] = tf.keras.layers.Input(shape=[None, hp_Dict['Sound']['Mel_Dim']], dtype= tf.as_dtype(policy.compute_dtype))
             layer_Dict['GST_Concated_Encoder'] = Modules.GST_Concated_Encoder()
         
         layer_Dict['Tacotron_Encoder'] = Modules.Tacotron_Encoder()
@@ -127,11 +135,11 @@ class GST_Tacotron:
 
     # @tf.function(
     #     input_signature=[
-    #         tf.TensorSpec(shape=[None, None, hp_Dict['Sound']['Mel_Dim']], dtype=tf.float32),
+    #         tf.TensorSpec(shape=[None, None, hp_Dict['Sound']['Mel_Dim']], dtype= tf.as_dtype(policy.compute_dtype)),
     #         tf.TensorSpec(shape=[None,], dtype=tf.int32),
     #         tf.TensorSpec(shape=[None, None], dtype=tf.int32),
     #         tf.TensorSpec(shape=[None,], dtype=tf.int32),
-    #         tf.TensorSpec(shape=[None, None, hp_Dict['Sound']['Spectrogram_Dim']], dtype=tf.float32),
+    #         tf.TensorSpec(shape=[None, None, hp_Dict['Sound']['Spectrogram_Dim']], dtype= tf.as_dtype(policy.compute_dtype)),
     #         tf.TensorSpec(shape=[None,], dtype=tf.int32)
     #         ],
     #     autograph= False,
@@ -152,12 +160,12 @@ class GST_Tacotron:
             mel_Loss *= tf.sequence_mask(
                 lengths= mel_lengths,
                 maxlen= tf.shape(mel_Loss)[-1],
-                dtype= tf.float32
+                dtype= tf.as_dtype(policy.compute_dtype)
                 )
             spectrogram_Loss *= tf.sequence_mask(
                 lengths= spectrogram_lengths,
                 maxlen= tf.shape(spectrogram_Loss)[-1],
-                dtype= tf.float32
+                dtype= tf.as_dtype(policy.compute_dtype)
                 )
             loss = tf.reduce_mean(mel_Loss) + tf.reduce_mean(spectrogram_Loss)
 
@@ -173,7 +181,7 @@ class GST_Tacotron:
         else:
             encoder_Tensor = self.model_Dict['Inference', 'Encoder'](tokens)
 
-        mels = tf.zeros(shape=[tf.shape(initial_mels)[0], 0, hp_Dict['Sound']['Mel_Dim']], dtype= tf.float32)
+        mels = tf.zeros(shape=[tf.shape(initial_mels)[0], 0, hp_Dict['Sound']['Mel_Dim']], dtype= tf.as_dtype(policy.compute_dtype))
         for step in range(hp_Dict['Tacotron']['Decoder']['Max_Step'] // hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction']):
             mels = tf.concat([initial_mels, mels], axis= 1)
             mels, spectrograms, attention_Histories = self.model_Dict['Inference', 'Decoder']([encoder_Tensor, mels])
@@ -217,7 +225,7 @@ class GST_Tacotron:
         self.optimizer.iterations.assign(initial_Step)
 
         Save_Checkpoint()        
-        Run_Inference()
+        # Run_Inference()
         while True:
             start_Time = time.time()
 
@@ -265,11 +273,16 @@ class GST_Tacotron:
     def Export_Inference(self, sentence_List, mel_List, spectrogram_List, attention_History_List, label):
         os.makedirs(os.path.join(hp_Dict['Inference_Path'], 'Plot').replace("\\", "/"), exist_ok= True)
         os.makedirs(os.path.join(hp_Dict['Inference_Path'], 'Wav').replace("\\", "/"), exist_ok= True)
-        ##########
+        
         for index, (sentence, mel, spect, attention_Histories) in enumerate(
             zip(sentence_List, mel_List, spectrogram_List, zip(*attention_History_List))
             ):
             history_Count = len(attention_Histories)
+            
+            #matplotlib does not supprt float16
+            mel = mel.astype(np.float32)
+            spect = spect.astype(np.float32)
+            attention_Histories = [x.astype(np.float32) for x in attention_Histories]
 
             new_Figure = plt.figure(figsize=(24, 12 + 12 * history_Count), dpi=100)
             plt.subplot2grid((2 * (history_Count + 1), 1), (0, 0))

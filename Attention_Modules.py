@@ -171,7 +171,7 @@ def _apply_scores(scores, value, scores_mask=None):
     if scores_mask is not None:
         padding_mask = tf.logical_not(scores_mask)
         # Bias so padding positions do not contribute to attention distribution.
-        scores -= 1.e9 * tf.cast(padding_mask, dtype=tf.keras.backend.floatx())
+        scores -= 1.e9 * tf.cast(padding_mask, dtype= scores.dtype)
     attention_distribution = tf.nn.softmax(scores)
 
     return tf.matmul(attention_distribution, value), attention_distribution
@@ -259,7 +259,7 @@ class LocationSensitiveAttention(tf.keras.layers.AdditiveAttention):
         value = self.layer_Dict['Value'](inputs[1])
         key = self.layer_Dict['Key'](inputs[2]) if len(inputs) > 2 else value
 
-        contexts = tf.zeros(shape= [tf.shape(query)[0], 1, self.size])  #initial attention, [Batch, 1, Att_dim]
+        contexts = tf.zeros(shape= [tf.shape(query)[0], 1, self.size], dtype= query.dtype)  #initial attention, [Batch, 1, Att_dim]
         alignments = tf.zeros(shape= (tf.shape(query)[0], 1, tf.shape(key)[1]))   #initial alignment, [Batch, 1, T_k]
 
         initial_Step = tf.constant(0)
@@ -420,12 +420,12 @@ class BahdanauMonotonicAttention(tf.keras.layers.AdditiveAttention):
         value = self.layer_Dict['Value'](inputs[1])
         key = self.layer_Dict['Key'](inputs[2]) if len(inputs) > 2 else value
 
-        contexts = tf.zeros(shape= [tf.shape(query)[0], 1, self.size])  #initial attention, [Batch, 1, Att_dim]
+        contexts = tf.zeros(shape= [tf.shape(query)[0], 1, self.size], dtype= query.dtype)  #initial attention, [Batch, 1, Att_dim]
         alignments = tf.expand_dims(
             tf.one_hot(
                 indices= tf.zeros((tf.shape(query)[0]), dtype= tf.int32),
                 depth= tf.shape(key)[1],
-                dtype= tf.float32
+                dtype= query.dtype
                 ),
             axis= 1
             )   #initial alignment, [Batch, 1, T_k]. This part is different by monotonic or not.
@@ -541,6 +541,7 @@ class StepwiseMonotonicAttention(BahdanauMonotonicAttention):
         p_choose_i = tf.sigmoid(score)  # [Batch_size, 1, T_v]
 
         pad = tf.zeros([tf.shape(p_choose_i)[0], 1, 1], dtype=p_choose_i.dtype)    # [Batch_size, 1, 1]
+
         attention = previous_alignment * p_choose_i + tf.concat(
             [pad, previous_alignment[:, :, :-1] * (1.0 - p_choose_i[:, :, :-1])], axis= -1)
 
@@ -656,11 +657,11 @@ class DynamicConvolutionAttention(tf.keras.layers.AdditiveAttention):
         key = self.layer_Dict['Key'](inputs[1]) #[Batch, T_k, Att_dim]
 
         batch_size = tf.shape(query)[0]
-        contexts = tf.zeros(shape= [tf.shape(query)[0], 1, self.size])  #initial attention, [Batch, 1, Att_dim]
+        contexts = tf.zeros(shape= [tf.shape(query)[0], 1, self.size], dtype= query.dtype)  #initial attention, [Batch, 1, Att_dim]
         alignments = tf.one_hot(
             indices= tf.zeros((tf.shape(query)[0], 1), dtype= tf.int32),
             depth= tf.shape(key)[1],
-            dtype= tf.float32
+            dtype= query.dtype
             )   #initial alignment, [Batch, 1, T_k]. This part is different by monotonic or not.
 
         initial_Step = tf.constant(0)
@@ -787,7 +788,7 @@ class DCA_P_Conv1D(tf.keras.layers.Conv1D):
         new_Tensor = super(DCA_P_Conv1D, self).call(inputs)
         new_Tensor = tf.squeeze(new_Tensor, axis= -1)
         
-        return tf.math.log(tf.maximum(new_Tensor, np.finfo(np.float32).tiny))
+        return tf.math.log(tf.maximum(new_Tensor, np.finfo(inputs.dtype.as_numpy_dtype).tiny))
         # return tf.maximum(tf.math.log(new_Tensor), -1e+6) # NaN problem.
 
     def beta_binomial(self, _n, _alpha, _beta):

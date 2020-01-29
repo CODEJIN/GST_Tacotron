@@ -64,7 +64,6 @@ class Style_Token_Layer(tf.keras.layers.Layer): #Attention which is in layer mus
         self.gst_tokens = self.add_weight(
             name= 'gst_tokens',
             shape= [hp_Dict['GST']['Style_Token']['Size'], hp_Dict['GST']['Style_Token']['Embedding']['Size']],
-            dtype= tf.float32,
             trainable= True,
             )
 
@@ -135,7 +134,7 @@ class Tacotron_Encoder(tf.keras.Model):
         '''
         new_Tensor = self.layer_Dict['Embedding'](inputs= inputs)
         new_Tensor = self.layer_Dict['Prenet'](inputs= new_Tensor, training= training)
-        new_Tensor = self.layer_Dict['CBHG'](inputs= new_Tensor, training= training)
+        new_Tensor = self.layer_Dict['CBHG'](inputs= new_Tensor, training= training)        
 
         return new_Tensor
 
@@ -152,7 +151,10 @@ class Tacotron_Decoder(tf.keras.Model):
             ))
 
         pre_RNN_Cell_List = [
-            tf.keras.layers.LSTMCell(units= size, recurrent_dropout= hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Zoneout'])  #Paper is '0.1'. However, TF2.0 cuDNN implementation does not support that yet.
+            tf.keras.layers.LSTMCell(
+                units= size,
+                recurrent_dropout= hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Zoneout'],    #Paper is '0.1'. However, TF2.0 cuDNN implementation does not support that yet.
+                )  
             for size in hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Size']
             ]
         self.layer_Dict['Pre_RNN'] = tf.keras.layers.RNN(
@@ -238,8 +240,8 @@ class Tacotron_Decoder(tf.keras.Model):
             false_fn= lambda: mels[:, 0::hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'], :]
             )
         new_Tensor = self.layer_Dict['Prenet'](inputs= new_Tensor, training= training)
-
-        new_Tensor = self.layer_Dict['Pre_RNN'](inputs=new_Tensor, training= training)
+        
+        new_Tensor = self.layer_Dict['Pre_RNN'](inputs= new_Tensor, training= training)
 
         attention_Tensor_List = []
         history_Tensor_List = []
@@ -408,8 +410,9 @@ class CBHG(tf.keras.layers.Layer):
         new_Tensor = new_Tensor + inputs    # Residual
 
         new_Tensor = self.layer_Dict['Highwaynet'](inputs= new_Tensor, training= training)
-            
+        
         return self.layer_Dict['RNN'](inputs= new_Tensor, training= training)
+
 
 class ConvBank(tf.keras.layers.Layer):
     def __init__(self, stack_count, filters):

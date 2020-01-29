@@ -78,7 +78,7 @@
                 "Zoneout": 0.0
             },
             "Attention": {
-                "Type": ["SMA"],
+                "Type": ["DCA"],
                 "Size": [256]
             },
             "Post_RNN": {
@@ -120,7 +120,7 @@
     "Train": {
         "Pattern_Path": "C:/Pattern/GST.Pattern.LJ",
         "Metadata_File": "METADATA.PICKLE",
-        "Batch_Size": 50,
+        "Batch_Size": 92,
         "Pattern_Sorting": true,
         "Min_Wav_Length": 500,
         "Max_Wav_Length": 10000,
@@ -130,14 +130,16 @@
         "ADAM": {
             "Beta1": 0.9,
             "Beta2": 0.999,
-            "Epsilon": 1e-6
+            "Epsilon": 1e-4
         },
         "Use_L2_Loss": false,
         "Inference_Timing": 1000,
         "Checkpoint_Save_Timing": 1000
     },
 
-    "Inference_Path": "D:/GST.Results/WO_GST.SMA/Inference",
-    "Checkpoint_Path": "D:/GST.Results/WO_GST.SMA/Checkpoint",
+    "Use_Mixed_Precision": true,
+    "Inference_Path": "D:/GST.Results/Float16/WO_GST.DCA/Inference",
+    "Checkpoint_Path": "D:/GST.Results/Float16/WO_GST.DCA/Checkpoint",
     "Device": "0"
+    
 }
