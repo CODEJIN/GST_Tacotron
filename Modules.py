@@ -1,6 +1,6 @@
 import tensorflow as tf
 import json
-from Attention_Modules import DotProductAttention, BahdanauAttention, LocationSensitiveAttention, DynamicConvolutionAttention, BahdanauMonotonicAttention, StepwiseMonotonicAttention
+from Attention_Modules import DotProductAttention, BahdanauAttention, MultiHeadAttention, LocationSensitiveAttention, DynamicConvolutionAttention, BahdanauMonotonicAttention, StepwiseMonotonicAttention
 
 
 with open('Hyper_Parameters.json', 'r') as f:
@@ -57,7 +57,8 @@ class Style_Token_Layer(tf.keras.layers.Layer): #Attention which is in layer mus
         super(Style_Token_Layer, self).__init__()
         
         self.layer_Dict = {}
-        self.layer_Dict['Attention'] = DotProductAttention(
+        self.layer_Dict['Attention'] = MultiHeadAttention(
+            num_heads= hp_Dict['GST']['Style_Token']['Attention']['Head'],
             size= hp_Dict['GST']['Style_Token']['Attention']['Size']
             )
 
@@ -173,6 +174,12 @@ class Tacotron_Decoder(tf.keras.Model):
                     )
             elif attention_Type == 'BA':
                 self.layer_Dict['Attention_{}'.format(index)] = BahdanauAttention(
+                    size= size,
+                    use_scale= True
+                    )
+            elif attention_Type == 'MHA':
+                self.layer_Dict['Attention_{}'.format(index)] = MultiHeadAttention(
+                    num_heads= 8,
                     size= size,
                     use_scale= True
                     )

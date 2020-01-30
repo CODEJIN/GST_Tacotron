@@ -2,29 +2,6 @@ import tensorflow as tf
 import numpy as np
 from scipy.special import comb, beta
 
-'''
-TF 2.0's basic attention layers(Attention and AdditiveAttention) calculate parallelly.
-TO USE MONOTONIC FUNCTION, ATTENTION MUST KNOW 'n-1 ALIGNMENT'.
-Thus, this parallel versions do not support the monotonic function.
-'''
-
-'''
-Tested:
-DotProductAttention
-BahdanauAttention
-LocationSensitiveAttention
-
-Failed yet:
-DynamicConvolutionAttention -> Score/apply score 계산에서 score dimension을 다시 살펴볼 것.....
-
-Testing:
-BahdanauMonotonicAttention
-
-Not yet:
-StepwiseMonotonicAttention
-'''
-
-
 class DotProductAttention(tf.keras.layers.Attention):
     '''
     Refer: https://github.com/tensorflow/tensorflow/blob/r2.0/tensorflow/python/keras/layers/dense_attention.py#L182-L303
@@ -167,6 +144,89 @@ class BahdanauAttention(tf.keras.layers.AdditiveAttention):
         return tf.reduce_sum(
             scale * tf.tanh(q_reshaped + k_reshaped), axis=-1)
 
+class MultiHeadAttention(tf.keras.layers.Attention):
+    '''
+    Refer1: DotProductAttention    
+    Refer2: https://github.com/Kyubyong/transformer/blob/master/modules.py
+    '''
+    def __init__(self, num_heads, size, use_scale=False, **kwargs):
+        super(MultiHeadAttention, self).__init__(use_scale= use_scale, **kwargs)
+
+        if size % num_heads != 0:
+            raise ValueError('size must be divisible by num_heads. (\'{}\' % \'{}\' != 0)'.format(size, num_heads))
+
+        self.num_heads = num_heads
+        self.size = size
+        self.use_scale = use_scale
+
+    def build(self, input_shape):
+        self.layer_Dict = {
+            'Query': tf.keras.layers.Dense(self.size),
+            'Value': tf.keras.layers.Dense(self.size),
+            'Key': tf.keras.layers.Dense(self.size),
+            'Layer_Normalization': Layer_Norm()
+            }
+
+        super(MultiHeadAttention, self).build(input_shape= input_shape)
+
+    def call(self, inputs, mask=None):
+        self._validate_call_args(inputs=inputs, mask=mask)
+        q = self.layer_Dict['Query'](inputs[0]) # [batch_size, Tq, Att_Dim]
+        v = self.layer_Dict['Value'](inputs[1]) # [batch_size, Tv, Att_Dim]
+        k = self.layer_Dict['Key'](inputs[2]) if len(inputs) > 2 else v # [batch_size, Tv, Att_Dim]
+
+        #Multihead
+        q_split = tf.concat(tf.split(q, self.num_heads, axis= -1), axis= 0)   # [batch_size * Heads, Tq, Att_Dim / Heads]
+        v_split = tf.concat(tf.split(v, self.num_heads, axis= -1), axis= 0)   # [batch_size * Heads, Tv, Att_Dim / Heads]
+        k_split = tf.concat(tf.split(k, self.num_heads, axis= -1), axis= 0)   # [batch_size * Heads, Tv, Att_Dim / Heads]
+        
+        q_mask = mask[0] if mask else None
+        v_mask = mask[1] if mask else None
+
+        scores = self._calculate_scores(query= q_split, key= k_split)
+        if v_mask is not None:
+            # Mask of shape [batch_size, 1, Tv].
+            v_mask = tf.expand_dims(v_mask, axis= -2)
+        if self.causal:
+            # Creates a lower triangular mask, so position i cannot attend to
+            # positions j>i. This prevents the flow of information from the future
+            # into the past.
+            scores_shape = tf.shape(scores)
+            # causal_mask_shape = [1, Tq, Tv].
+            causal_mask_shape = tf.concat(
+                [tf.ones_like(scores_shape[:-2]), scores_shape[-2:]],
+                axis=0)
+            causal_mask = _lower_triangular_mask(causal_mask_shape)
+        else:
+            causal_mask = None
+        scores_mask = _merge_masks(v_mask, causal_mask)
+        result, attention_distribution = _apply_scores(scores=scores, value= v_split, scores_mask=scores_mask) #reslut: [batch_size * Heads, Tq, Att_Dim / Heads], attention_distribution: [batch_size * Heads, Tq, Tv]
+        if q_mask is not None:
+            # Mask of shape [batch_size, Tq, 1].
+            q_mask = tf.expand_dims(q_mask, axis=-1)
+            result *= tf.cast(q_mask, dtype=result.dtype)
+
+        result = tf.concat(tf.split(result, self.num_heads, axis= 0), axis= -1)  # [batch_size, Tq, Att_Dim]
+
+        result = self.layer_Dict['Layer_Normalization'](result + q) #Residual, layer normalization
+        attention_distribution = tf.reduce_mean(tf.stack(tf.split(attention_distribution, self.num_heads, axis= 0), axis= 1), axis= 1)  # [batch_size * Heads, Tq, Tv] -> [batch_size, Heads, Tq, Tv] -> [batch_size, Tq, Tv]
+
+        return result, attention_distribution
+
+    def _calculate_scores(self, query, key):
+        """Calculates attention scores as a query-key dot product.
+        Args:
+        query: Query tensor of shape `[batch_size, Tq, dim]`.
+        key: Key tensor of shape `[batch_size, Tv, dim]`.
+        Returns:
+        Tensor of shape `[batch_size, Tq, Tv]`.
+        """
+        scores = tf.matmul(query, key, transpose_b=True)
+
+        if self.scale is not None:            
+            scores *= self.scale
+        return scores
+
 def _apply_scores(scores, value, scores_mask=None):
     if scores_mask is not None:
         padding_mask = tf.logical_not(scores_mask)
@@ -190,6 +250,39 @@ def _merge_masks(x, y):
     if y is None:
         return x
     return tf.logical_and(x, y)
+
+class Layer_Norm(tf.keras.layers.Layer):
+    '''
+    There are several restriction in 'tf.keras.layers.LayerNormalization'.    
+    '''    
+    def __init__(self, epsilon= 1e-8):
+        super(Layer_Norm, self).__init__()
+        self.epsilon = epsilon
+
+    def build(self, input_shape):
+        self.beta = self.add_weight(
+            name= 'beta',
+            shape= input_shape[-1:],
+            initializer= tf.zeros_initializer(),
+            dtype= self.dtype,
+            trainable= True
+            )
+        self.gamma = self.add_weight(
+            name= 'gamma',
+            shape= input_shape[-1:],
+            initializer= tf.ones_initializer(),
+            dtype= self.dtype,
+            trainable= True
+            )
+
+        self.built = True
+
+    def call(self, inputs):
+        mean, variance = tf.nn.moments(inputs, [-1], keepdims= True)
+        normalized = (inputs - mean) / ((variance + self.epsilon) ** .5)
+        outputs = self.gamma * normalized + self.beta
+
+        return outputs
 
 
 # Refer: https://github.com/begeekmyfriend/tacotron/blob/60d6932f510bf591acb25620290868900b5c0a41/models/attention.py
@@ -582,42 +675,37 @@ class DynamicConvolutionAttention(tf.keras.layers.AdditiveAttention):
         self.p_beta = p_beta
         self.cumulate_weights = cumulate_weights
         
+    def build(self, input_shape):
         self.layer_Dict = {}
-        self.layer_Dict['Key'] = tf.keras.layers.Dense(size)
+        self.layer_Dict['Key'] = tf.keras.layers.Dense(self.size)
 
         self.layer_Dict['F_Conv'] = tf.keras.layers.Conv1D(
-            filters= f_conv_filters,
-            kernel_size= f_conv_kernel_size,
-            strides= f_conv_stride,
+            filters= self.f_conv_filters,
+            kernel_size= self.f_conv_kernel_size,
+            strides= self.f_conv_stride,
             padding='same'
             )
         self.layer_Dict['F_Dense'] = tf.keras.layers.Dense(
-            size,
+            self.size,
             use_bias= False
             )
         
-        self.layer_Dict['G_Filter_Dense_0'] = tf.keras.layers.Dense(
-            units= g_conv_kernel_size * g_conv_filters,
+        self.layer_Dict['G_Filter_Dense'] = tf.keras.layers.Dense(
+            units= self.g_conv_kernel_size * self.g_conv_filters,
             use_bias= True,
             activation= 'tanh'
             )
-        # self.layer_Dict['G_Filter_Dense_1'] = tf.keras.layers.Dense(
-        #     units= g_conv_kernel_size * g_conv_filters,
-        #     use_bias= False
-        #     )
         self.layer_Dict['G_Dense'] = tf.keras.layers.Dense(
-            size,
+            self.size,
             use_bias= False
             )
 
         self.layer_Dict['P_Conv'] = DCA_P_Conv1D(
-            p_conv_size = p_conv_size,
-            p_alpha= p_alpha,
-            p_beta = p_beta,
+            p_conv_size = self.p_conv_size,
+            p_alpha= self.p_alpha,
+            p_beta = self.p_beta,
             )
         
-
-    def build(self, input_shape):
         """Creates scale and bias variable if use_scale==True."""
         if self.use_scale:
             self.scale = self.add_weight(
@@ -673,8 +761,7 @@ class DynamicConvolutionAttention(tf.keras.layers.AdditiveAttention):
             feature_previous_alignment = self.layer_Dict['F_Conv'](previous_alignment)    #[Batch, T_k, Filters]
             feature_previous_alignment = self.layer_Dict['F_Dense'](feature_previous_alignment)   #[Batch, T_k, Att_dim]
 
-            dynamic_filter = self.g_scale * self.layer_Dict['G_Filter_Dense_0'](query_Step)    # [Batch, Conv_Size * Conv_Ch]
-            #dynamic_filter = self.layer_Dict['G_Filter_Dense_1'](dynamic_filter)    # [Batch, Conv_Size * Conv_Ch]
+            dynamic_filter = self.g_scale * self.layer_Dict['G_Filter_Dense'](query_Step)    # [Batch, Conv_Size * Conv_Ch]
             dynamic_filter = tf.reshape(
                 dynamic_filter,
                 shape= [batch_size, 1, self.g_conv_kernel_size, self.g_conv_filters]
@@ -791,6 +878,5 @@ class DCA_P_Conv1D(tf.keras.layers.Conv1D):
         return tf.math.log(tf.maximum(new_Tensor, np.finfo(inputs.dtype.as_numpy_dtype).tiny))
         # return tf.maximum(tf.math.log(new_Tensor), -1e+6) # NaN problem.
 
-    def beta_binomial(self, _n, _alpha, _beta):
-        from scipy.special import comb, beta        
+    def beta_binomial(self, _n, _alpha, _beta):   
         return [comb(_n,i) * beta(i+_alpha, _n-i+_beta) / beta(_alpha, _beta) for i in range(_n)]
