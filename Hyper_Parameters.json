@@ -130,7 +130,7 @@
         "ADAM": {
             "Beta1": 0.9,
             "Beta2": 0.999,
-            "Epsilon": 1e-4
+            "Epsilon": 1e-6
         },
         "Use_L2_Loss": false,
         "Inference_Timing": 1000,

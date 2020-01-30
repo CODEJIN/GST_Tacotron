@@ -22,7 +22,7 @@ if not hp_Dict['Device'] is None:
     os.environ["CUDA_VISIBLE_DEVICES"]= hp_Dict['Device']
 
 if hp_Dict['Use_Mixed_Precision']:    
-    policy = mixed_precision.Policy('mixed_float16')    
+    policy = mixed_precision.Policy('mixed_float16')
 else:
     policy = mixed_precision.Policy('float32')
 mixed_precision.set_policy(policy)
