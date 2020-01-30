@@ -26,8 +26,9 @@
             }
         },
         "Style_Token": {
-            "Size": 64,
+            "Size": 16,
             "Attention": {
+                "Head": 4,
                 "Size": 128
             },
             "Embedding": {
