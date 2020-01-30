@@ -251,7 +251,6 @@ def _merge_masks(x, y):
         return x
     return tf.logical_and(x, y)
 
-
 class Layer_Norm(tf.keras.layers.Layer):
     '''
     There are several restriction in 'tf.keras.layers.LayerNormalization'.    
@@ -676,42 +675,37 @@ class DynamicConvolutionAttention(tf.keras.layers.AdditiveAttention):
         self.p_beta = p_beta
         self.cumulate_weights = cumulate_weights
         
+    def build(self, input_shape):
         self.layer_Dict = {}
-        self.layer_Dict['Key'] = tf.keras.layers.Dense(size)
+        self.layer_Dict['Key'] = tf.keras.layers.Dense(self.size)
 
         self.layer_Dict['F_Conv'] = tf.keras.layers.Conv1D(
-            filters= f_conv_filters,
-            kernel_size= f_conv_kernel_size,
-            strides= f_conv_stride,
+            filters= self.f_conv_filters,
+            kernel_size= self.f_conv_kernel_size,
+            strides= self.f_conv_stride,
             padding='same'
             )
         self.layer_Dict['F_Dense'] = tf.keras.layers.Dense(
-            size,
+            self.size,
             use_bias= False
             )
         
-        self.layer_Dict['G_Filter_Dense_0'] = tf.keras.layers.Dense(
-            units= g_conv_kernel_size * g_conv_filters,
+        self.layer_Dict['G_Filter_Dense'] = tf.keras.layers.Dense(
+            units= self.g_conv_kernel_size * self.g_conv_filters,
             use_bias= True,
             activation= 'tanh'
             )
-        # self.layer_Dict['G_Filter_Dense_1'] = tf.keras.layers.Dense(
-        #     units= g_conv_kernel_size * g_conv_filters,
-        #     use_bias= False
-        #     )
         self.layer_Dict['G_Dense'] = tf.keras.layers.Dense(
-            size,
+            self.size,
             use_bias= False
             )
 
         self.layer_Dict['P_Conv'] = DCA_P_Conv1D(
-            p_conv_size = p_conv_size,
-            p_alpha= p_alpha,
-            p_beta = p_beta,
+            p_conv_size = self.p_conv_size,
+            p_alpha= self.p_alpha,
+            p_beta = self.p_beta,
             )
         
-
-    def build(self, input_shape):
         """Creates scale and bias variable if use_scale==True."""
         if self.use_scale:
             self.scale = self.add_weight(
@@ -767,8 +761,7 @@ class DynamicConvolutionAttention(tf.keras.layers.AdditiveAttention):
             feature_previous_alignment = self.layer_Dict['F_Conv'](previous_alignment)    #[Batch, T_k, Filters]
             feature_previous_alignment = self.layer_Dict['F_Dense'](feature_previous_alignment)   #[Batch, T_k, Att_dim]
 
-            dynamic_filter = self.g_scale * self.layer_Dict['G_Filter_Dense_0'](query_Step)    # [Batch, Conv_Size * Conv_Ch]
-            #dynamic_filter = self.layer_Dict['G_Filter_Dense_1'](dynamic_filter)    # [Batch, Conv_Size * Conv_Ch]
+            dynamic_filter = self.g_scale * self.layer_Dict['G_Filter_Dense'](query_Step)    # [Batch, Conv_Size * Conv_Ch]
             dynamic_filter = tf.reshape(
                 dynamic_filter,
                 shape= [batch_size, 1, self.g_conv_kernel_size, self.g_conv_filters]
@@ -885,6 +878,5 @@ class DCA_P_Conv1D(tf.keras.layers.Conv1D):
         return tf.math.log(tf.maximum(new_Tensor, np.finfo(inputs.dtype.as_numpy_dtype).tiny))
         # return tf.maximum(tf.math.log(new_Tensor), -1e+6) # NaN problem.
 
-    def beta_binomial(self, _n, _alpha, _beta):
-        from scipy.special import comb, beta        
+    def beta_binomial(self, _n, _alpha, _beta):   
         return [comb(_n,i) * beta(i+_alpha, _n-i+_beta) / beta(_alpha, _beta) for i in range(_n)]
