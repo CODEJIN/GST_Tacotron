@@ -5,7 +5,7 @@ from collections import deque
 from threading import Thread
 from random import shuffle
 
-from Audio import melspectrogram, spectrogram
+from Audio import melspectrogram, spectrogram, preemphasis
 
 with open('Hyper_Parameters.json', 'r') as f:
     hp_Dict = json.load(f)
@@ -41,6 +41,7 @@ def Mel_Generate(path, top_db= 60, range_Ignore = False):
         path,
         sr = hp_Dict['Sound']['Sample_Rate']
         )[0]
+    sig = preemphasis(sig)
     sig = librosa.effects.trim(sig, top_db= top_db)[0] * 0.99
 
     sig_Length = sig.shape[0] / hp_Dict['Sound']['Sample_Rate'] * 1000  #ms
@@ -62,6 +63,7 @@ def Spectrogram_Generate(path, top_db= 60, range_Ignore = False):
         path,
         sr = hp_Dict['Sound']['Sample_Rate']
         )[0]
+    sig = preemphasis(sig)
     sig = librosa.effects.trim(sig, top_db= top_db)[0] * 0.99
 
     sig_Length = sig.shape[0] / hp_Dict['Sound']['Sample_Rate'] * 1000  #ms
@@ -106,14 +108,23 @@ def Pattern_File_Generate(path, text, token_Index_Dict, dataset, file_Prefix='',
     print('[{}]'.format(display_Prefix), '{}'.format(path), '->', '{}'.format(pickle_File_Name))
 
 
-def VCTK_Info_Load(vctk_Path):
+def VCTK_Info_Load(vctk_Path, max_Count= None):
     vctk_Wav_Path = os.path.join(vctk_Path, 'wav48').replace('\\', '/')
     vctk_Txt_Path = os.path.join(vctk_Path, 'txt').replace('\\', '/')
+    with open(os.path.join(vctk_Path, 'VCTK.NonOutlier.txt').replace('\\', '/'), 'r') as f:
+        vctk_Non_Outlier_List = [x.strip() for x in f.readlines()]
+    # try:
+        # with open(os.path.join(vctk_Path, 'VCTK.NonOutlier.txt').replace('\\', '/'), 'r') as f:
+        #     vctk_Non_Outlier_List = [x.strip() for x in f.readlines()]
+    # except:
+    #     vctk_Non_Outlier_List = None
 
     vctk_File_Path_List = []
     vctk_Text_Dict = {}
     for root, _, file_Name_List in os.walk(vctk_Wav_Path):
         for file_Name in file_Name_List:
+            if not vctk_Non_Outlier_List is None and not file_Name in vctk_Non_Outlier_List:
+                continue
             wav_File_Path = os.path.join(root, file_Name).replace('\\', '/')
             if not os.path.splitext(wav_File_Path)[1].upper() in using_Extension:
                 continue
@@ -127,10 +138,13 @@ def VCTK_Info_Load(vctk_Path):
             vctk_File_Path_List.append(wav_File_Path)
             vctk_Text_Dict[wav_File_Path] = text
 
+    if not max_Count is None:
+        vctk_File_Path_List = vctk_File_Path_List[:max_Count]
+
     print('VCTK info generated: {}'.format(len(vctk_File_Path_List)))
     return vctk_File_Path_List, vctk_Text_Dict
 
-def LS_Info_Load(ls_Path):
+def LS_Info_Load(ls_Path, max_Count= None):
     ls_File_Path_List = []
     ls_Text_Dict = {}
     for root, _, file_Name_List in os.walk(ls_Path):
@@ -158,10 +172,13 @@ def LS_Info_Load(ls_Path):
             ls_File_Path_List.append(wav_File_Path)
             ls_Text_Dict[wav_File_Path] = text
 
+    if not max_Count is None:
+        ls_File_Path_List = ls_File_Path_List[:max_Count]
+
     print('LS info generated: {}'.format(len(ls_File_Path_List)))
     return ls_File_Path_List, ls_Text_Dict
 
-def TIMIT_Info_Load(timit_Path):
+def TIMIT_Info_Load(timit_Path, max_Count= None):
     timit_File_Path_List = []
     timit_Text_List_Dict = {}
     for root, _, file_Name_List in os.walk(timit_Path):
@@ -179,10 +196,13 @@ def TIMIT_Info_Load(timit_Path):
             timit_File_Path_List.append(wav_File_Path)
             timit_Text_List_Dict[wav_File_Path] = text
 
+    if not max_Count is None:
+        timit_File_Path_List = timit_File_Path_List[:max_Count]
+
     print('TIMIT info generated: {}'.format(len(timit_File_Path_List)))
     return timit_File_Path_List, timit_Text_List_Dict
 
-def LJ_Info_Load(lj_Path):
+def LJ_Info_Load(lj_Path, max_Count= None):
     lj_File_Path_List = []
     lj_Text_Dict = {}
 
@@ -207,10 +227,13 @@ def LJ_Info_Load(lj_Path):
             lj_File_Path_List.append(wav_File_Path)
             lj_Text_Dict[wav_File_Path] = text_Dict[os.path.splitext(file_Name)[0].upper()]
 
+    if not max_Count is None:
+        lj_File_Path_List = lj_File_Path_List[:max_Count]
+
     print('LJ info generated: {}'.format(len(lj_File_Path_List)))
     return lj_File_Path_List, lj_Text_Dict
 
-def BC2013_Info_Load(bc2013_Path):
+def BC2013_Info_Load(bc2013_Path, max_Count= None):
     text_Path_List = []
     for root, _, files in os.walk(bc2013_Path):
         for filename in files:
@@ -233,10 +256,13 @@ def BC2013_Info_Load(bc2013_Path):
         bc2013_File_Path_List.append(wav_Path)
         bc2013_Text_Dict[wav_Path] = text
 
+    if not max_Count is None:
+        bc2013_File_Path_List = bc2013_File_Path_List[:max_Count]
+
     print('BC2013 info generated: {}'.format(len(bc2013_File_Path_List)))
     return bc2013_File_Path_List, bc2013_Text_Dict
 
-def Metadata_Generate(token_Index_Dict):
+def Metadata_Generate(token_Index_Dict, max_Count= None):
     new_Metadata_Dict = {
         'Token_Index_Dict': token_Index_Dict,        
         'Spectrogram_Dim': hp_Dict['Sound']['Spectrogram_Dim'],
@@ -277,26 +303,30 @@ if __name__ == '__main__':
     argParser.add_argument("-bc2013", "--bc2013_path", required=False)
     argParser.add_argument("-all", "--all_save", action='store_true') #When this parameter is False, only correct time range patterns are generated.
     argParser.set_defaults(all_save = False)
+    argParser.add_argument("-mc", "--max_count", required=False)
     argParser.add_argument("-mw", "--max_worker", required=False)
     argParser.set_defaults(max_worker = 10)
     argument_Dict = vars(argParser.parse_args())
     
+    if not argument_Dict['max_count'] is None:
+        argument_Dict['max_count'] = int(argument_Dict['max_count'])
+
     total_Pattern_Count = 0
 
     if not argument_Dict['lj_path'] is None:
-        lj_File_Path_List, lj_Text_Dict = LJ_Info_Load(lj_Path= argument_Dict['lj_path'])
+        lj_File_Path_List, lj_Text_Dict = LJ_Info_Load(lj_Path= argument_Dict['lj_path'], max_Count= argument_Dict['max_count'])
         total_Pattern_Count += len(lj_File_Path_List)
     if not argument_Dict['vctk_path'] is None:
-        vctk_File_Path_List, vctk_Text_Dict = VCTK_Info_Load(vctk_Path= argument_Dict['vctk_path'])
+        vctk_File_Path_List, vctk_Text_Dict = VCTK_Info_Load(vctk_Path= argument_Dict['vctk_path'], max_Count= argument_Dict['max_count'])
         total_Pattern_Count += len(vctk_File_Path_List)
     if not argument_Dict['ls_path'] is None:
-        ls_File_Path_List, ls_Text_Dict = LS_Info_Load(ls_Path= argument_Dict['ls_path'])
+        ls_File_Path_List, ls_Text_Dict = LS_Info_Load(ls_Path= argument_Dict['ls_path'], max_Count= argument_Dict['max_count'])
         total_Pattern_Count += len(ls_File_Path_List)
     if not argument_Dict['timit_path'] is None:
-        timit_File_Path_List, timit_Text_List_Dict = TIMIT_Info_Load(timit_Path= argument_Dict['timit_path'])
+        timit_File_Path_List, timit_Text_List_Dict = TIMIT_Info_Load(timit_Path= argument_Dict['timit_path'], max_Count= argument_Dict['max_count'])
         total_Pattern_Count += len(timit_File_Path_List)
     if not argument_Dict['bc2013_path'] is None:
-        bc2013_File_Path_List, bc2013_Text_List_Dict = BC2013_Info_Load(bc2013_Path= argument_Dict['bc2013_path'])
+        bc2013_File_Path_List, bc2013_Text_List_Dict = BC2013_Info_Load(bc2013_Path= argument_Dict['bc2013_path'], max_Count= argument_Dict['max_count'])
         total_Pattern_Count += len(bc2013_File_Path_List)
 
     if total_Pattern_Count == 0:
@@ -340,7 +370,7 @@ if __name__ == '__main__':
                         total_Generated_Pattern_Count,
                         total_Pattern_Count
                         ),
-                    60,
+                    15,
                     argument_Dict['all_save']
                     )
                 total_Generated_Pattern_Count += 1

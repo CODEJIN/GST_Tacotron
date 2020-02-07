@@ -44,7 +44,7 @@ class GST_Tacotron:
         layer_Dict['Encoder'] = tf.keras.layers.Input(
             shape=[
                 None,
-                hp_Dict['Tacotron']['Encoder']['CBHG']['RNN']['Size'] * 2 + (hp_Dict['GST']['Style_Token']['Embedding']['Size'] if hp_Dict['GST']['Use'] else 0)
+                hp_Dict['Tacotron']['Encoder']['CBHG']['RNN']['Size'] * 2 + (hp_Dict['GST']['Style_Token']['Attention']['Size'] if hp_Dict['GST']['Use'] else 0)
                 ],
             dtype= tf.as_dtype(policy.compute_dtype)
             )        
@@ -202,6 +202,11 @@ class GST_Tacotron:
         print('Checkpoint \'{}\' is loaded.'.format(checkpoint_File_Path))
 
     def Train(self, initial_Step= 0):
+        if not os.path.exists(os.path.join(hp_Dict['Inference_Path'], 'Hpyer_Parameters.json')):
+            os.makedirs(hp_Dict['Inference_Path'], exist_ok= True)
+            with open(os.path.join(hp_Dict['Inference_Path'], 'Hyper_Parameters.json').replace("\\", "/"), "w") as f:
+                json.dump(hp_Dict, f, indent= 4)
+
         def Save_Checkpoint():
             os.makedirs(os.path.join(hp_Dict['Checkpoint_Path']).replace("\\", "/"), exist_ok= True)
             self.model_Dict['Train'].save_weights(os.path.join(hp_Dict['Checkpoint_Path'], 'CHECKPOINT.H5').replace('\\', '/'))
@@ -272,8 +277,8 @@ class GST_Tacotron:
 
     def Export_Inference(self, sentence_List, mel_List, spectrogram_List, attention_History_List, label):
         os.makedirs(os.path.join(hp_Dict['Inference_Path'], 'Plot').replace("\\", "/"), exist_ok= True)
-        os.makedirs(os.path.join(hp_Dict['Inference_Path'], 'Wav').replace("\\", "/"), exist_ok= True)
-        
+        os.makedirs(os.path.join(hp_Dict['Inference_Path'], 'Wav').replace("\\", "/"), exist_ok= True)        
+
         for index, (sentence, mel, spect, attention_Histories) in enumerate(
             zip(sentence_List, mel_List, spectrogram_List, zip(*attention_History_List))
             ):

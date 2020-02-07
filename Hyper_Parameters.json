@@ -11,7 +11,7 @@
     "Token_JSON_Path": "Token_Index_Dict.ENG.json",
 
     "GST": {
-        "Use": false,
+        "Use": true,
         "Reference_Encoder": {
             "Conv": {
                 "Filters": [32, 32, 64, 64, 128, 128],
@@ -26,12 +26,12 @@
             }
         },
         "Style_Token": {
-            "Size": 16,
+            "Size": 256,
+            "Embedding": {
+                "Size": 256
+            },
             "Attention": {
                 "Head": 4,
-                "Size": 128
-            },
-            "Embedding": {
                 "Size": 128
             }
         }
@@ -79,7 +79,7 @@
                 "Zoneout": 0.0
             },
             "Attention": {
-                "Type": ["DCA"],
+                "Type": ["SMA"],
                 "Size": [256]
             },
             "Post_RNN": {
@@ -87,7 +87,7 @@
                 "Size": 256,
                 "Zoneout": 0.0
             },
-            "Inference_Step_Reduction": 4,
+            "Inference_Step_Reduction": 3,
             "Max_Step": 520
         }
     },
@@ -119,9 +119,9 @@
     },
 
     "Train": {
-        "Pattern_Path": "C:/Pattern/GST.Pattern.LJ",
+        "Pattern_Path": "C:/Pattern/GST.Pattern.LJVCTK",
         "Metadata_File": "METADATA.PICKLE",
-        "Batch_Size": 92,
+        "Batch_Size": 42,
         "Pattern_Sorting": true,
         "Min_Wav_Length": 500,
         "Max_Wav_Length": 10000,
@@ -138,9 +138,9 @@
         "Checkpoint_Save_Timing": 1000
     },
 
-    "Use_Mixed_Precision": true,
-    "Inference_Path": "D:/GST.Results/Float16/WO_GST.DCA/Inference",
-    "Checkpoint_Path": "D:/GST.Results/Float16/WO_GST.DCA/Checkpoint",
+    "Use_Mixed_Precision": false,
+    "Inference_Path": "D:/GST.Results/GST.LJVCTK.SMA/Inference",
+    "Checkpoint_Path": "D:/GST.Results/GST.LJVCTK.SMA/Checkpoint",
     "Device": "0"
     
 }

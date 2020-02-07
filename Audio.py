@@ -3,7 +3,6 @@
 # I only changed the hparams to usual parameters from oroginal code.
 
 import numpy as np
-import tensorflow as tf
 from scipy import signal
 import librosa.filters
 import librosa

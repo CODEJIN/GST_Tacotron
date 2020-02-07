@@ -65,17 +65,24 @@ class Style_Token_Layer(tf.keras.layers.Layer): #Attention which is in layer mus
         self.gst_tokens = self.add_weight(
             name= 'gst_tokens',
             shape= [hp_Dict['GST']['Style_Token']['Size'], hp_Dict['GST']['Style_Token']['Embedding']['Size']],
+            initializer= tf.keras.initializers.TruncatedNormal(stddev= 0.5),
             trainable= True,
+
             )
 
     def call(self, inputs):
         '''
         inputs: Reference_Encoder tensor
         '''
+        tiled_GST_Tokens = tf.tile(
+            tf.expand_dims(tf.tanh(self.gst_tokens), axis=0),
+            [tf.shape(inputs)[0], 1, 1]
+            )   #[Token_Dim, Emedding_Dim] -> [Batch, Token_Dim, Emedding_Dim]
+        new_Tensor = tf.expand_dims(inputs, axis= 1)    #[Batch, R_dim] -> [Batch, 1, R_dim]
         new_Tensor, _ = self.layer_Dict['Attention'](
-            inputs= [inputs, tf.tanh(self.gst_tokens)]  #[query, value, key] or [query, value]
-            )
-
+            inputs= [new_Tensor, tiled_GST_Tokens]  #[query, value]
+            )   #[Batch, 1, Att_dim]
+        
         return new_Tensor
 
 class GST_Concated_Encoder(tf.keras.layers.Layer):
@@ -94,8 +101,7 @@ class GST_Concated_Encoder(tf.keras.layers.Layer):
         
         new_Tensor = self.layer_Dict['Reference_Encoder'](mels_for_gst[:, 1:])  #Initial frame deletion
         new_Tensor = self.layer_Dict['Style_Token_Layer'](new_Tensor)
-        new_Tensor = tf.expand_dims(new_Tensor, axis= 1)
-        new_Tensor = tf.tile(new_Tensor, [1, tf.shape(encoders)[1], 1])        
+        new_Tensor = tf.tile(new_Tensor, [1, tf.shape(encoders)[1], 1])
         new_Tensor = tf.concat([encoders, new_Tensor], axis=-1)
         
         return new_Tensor
@@ -135,8 +141,8 @@ class Tacotron_Encoder(tf.keras.Model):
         '''
         new_Tensor = self.layer_Dict['Embedding'](inputs= inputs)
         new_Tensor = self.layer_Dict['Prenet'](inputs= new_Tensor, training= training)
-        new_Tensor = self.layer_Dict['CBHG'](inputs= new_Tensor, training= training)        
-
+        new_Tensor = self.layer_Dict['CBHG'](inputs= new_Tensor, training= training)
+        
         return new_Tensor
 
 class Tacotron_Decoder(tf.keras.Model):

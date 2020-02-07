@@ -200,9 +200,9 @@ class Feeder:
                 return
 
             if len(wav_List_for_GST) == 1:                
-                new_Mel_Pattern_for_GST = np.stack([Mel_Generate(wav_List_for_GST[0], range_Ignore= True)] * pattern_Count, axis= 0)
+                new_Mel_Pattern_for_GST = np.stack([Mel_Generate(wav_List_for_GST[0], top_db= 15, range_Ignore= True)] * pattern_Count, axis= 0)
             else:
-                mel_List = [Mel_Generate(path, range_Ignore= True) for path in wav_List_for_GST]
+                mel_List = [Mel_Generate(path, top_db= 15, range_Ignore= True) for path in wav_List_for_GST]
                 max_Mel_Length = max([mel.shape[0] for mel in mel_List])
                 new_Mel_Pattern_for_GST = np.zeros(
                     shape=(pattern_Count, max_Mel_Length, hp_Dict['Sound']['Mel_Dim']),
