@@ -75,8 +75,10 @@ class Feeder:
                 path_List[x:x + hp_Dict['Train']['Batch_Size']]
                 for x in range(0, len(path_List), hp_Dict['Train']['Batch_Size'])
                 ]
-            shuffle(path_Batch_List)
-            # path_Batch_List = path_Batch_List[0:2] + list(reversed(path_Batch_List))  #Batch size의 적절성을 위한 코드. 10회 이상 되면 문제 없음
+            if hp_Dict['Train']['Sequential_Pattern']:
+                path_Batch_List = path_Batch_List[0:2] + list(reversed(path_Batch_List))  #Batch size의 적절성을 위한 코드. 10회 이상 되면 문제 없음
+            else:
+                shuffle(path_Batch_List)            
 
             batch_Index = 0
             while batch_Index < len(path_Batch_List):

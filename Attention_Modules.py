@@ -353,7 +353,7 @@ class LocationSensitiveAttention(tf.keras.layers.AdditiveAttention):
         key = self.layer_Dict['Key'](inputs[2]) if len(inputs) > 2 else value
 
         contexts = tf.zeros(shape= [tf.shape(query)[0], 1, self.size], dtype= query.dtype)  #initial attention, [Batch, 1, Att_dim]
-        alignments = tf.zeros(shape= (tf.shape(query)[0], 1, tf.shape(key)[1]))   #initial alignment, [Batch, 1, T_k]
+        alignments = tf.zeros(shape= (tf.shape(query)[0], 1, tf.shape(key)[1]), dtype= query.dtype)   #initial alignment, [Batch, 1, T_k]
 
         initial_Step = tf.constant(0)
         def body(step, query, contexts, alignments):

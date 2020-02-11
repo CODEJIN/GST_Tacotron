@@ -120,7 +120,7 @@ class GST_Tacotron:
 
         learning_Rate = Modules.ExponentialDecay(
             initial_learning_rate= hp_Dict['Train']['Initial_Learning_Rate'],
-            decay_steps= 10000,
+            decay_steps= 20000,
             decay_rate= 0.5,
             min_learning_rate= hp_Dict['Train']['Min_Learning_Rate'],
             staircase= False

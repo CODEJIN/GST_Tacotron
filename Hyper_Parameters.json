@@ -1,6 +1,6 @@
 {
     "Sound": {
-        "Spectrogram_Dim": 1025,
+        "Spectrogram_Dim": 513,
         "Mel_Dim": 80,
         "Frame_Length": 50,
         "Frame_Shift": 12.5,
@@ -80,15 +80,15 @@
             },
             "Attention": {
                 "Type": ["SMA"],
-                "Size": [256]
+                "Size": [512]
             },
             "Post_RNN": {
                 "Count": 2,
                 "Size": 256,
                 "Zoneout": 0.0
             },
-            "Inference_Step_Reduction": 3,
-            "Max_Step": 520
+            "Inference_Step_Reduction": 5,
+            "Max_Step": 800
         }
     },
 
@@ -121,26 +121,28 @@
     "Train": {
         "Pattern_Path": "C:/Pattern/GST.Pattern.LJVCTK",
         "Metadata_File": "METADATA.PICKLE",
-        "Batch_Size": 42,
+        "Batch_Size": 88,
         "Pattern_Sorting": true,
         "Min_Wav_Length": 500,
         "Max_Wav_Length": 10000,
         "Max_Pattern_Queue": 50,
-        "Initial_Learning_Rate": 2e-3,
+        "Initial_Learning_Rate": 1e-3,
         "Min_Learning_Rate": 1e-5,
         "ADAM": {
             "Beta1": 0.9,
             "Beta2": 0.999,
-            "Epsilon": 1e-6
+            "Epsilon": 1e-4
         },
         "Use_L2_Loss": false,
         "Inference_Timing": 1000,
-        "Checkpoint_Save_Timing": 1000
+        "Checkpoint_Save_Timing": 1000,
+
+        "Sequential_Pattern": false
     },
 
-    "Use_Mixed_Precision": false,
-    "Inference_Path": "D:/GST.Results/GST.LJVCTK.SMA/Inference",
-    "Checkpoint_Path": "D:/GST.Results/GST.LJVCTK.SMA/Checkpoint",
+    "Use_Mixed_Precision": true,
+    "Inference_Path": "D:/GST.Results/GST.LJVCTK.SMA.R5/Inference",
+    "Checkpoint_Path": "D:/GST.Results/GST.LJVCTK.SMA.R5/Checkpoint",
     "Device": "0"
     
 }

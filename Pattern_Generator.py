@@ -5,7 +5,7 @@ from collections import deque
 from threading import Thread
 from random import shuffle
 
-from Audio import melspectrogram, spectrogram, preemphasis
+from Audio import melspectrogram, spectrogram, preemphasis, inv_preemphasis
 
 with open('Hyper_Parameters.json', 'r') as f:
     hp_Dict = json.load(f)
@@ -42,7 +42,8 @@ def Mel_Generate(path, top_db= 60, range_Ignore = False):
         sr = hp_Dict['Sound']['Sample_Rate']
         )[0]
     sig = preemphasis(sig)
-    sig = librosa.effects.trim(sig, top_db= top_db)[0] * 0.99
+    sig = librosa.effects.trim(sig, top_db= top_db, frame_length= 32, hop_length= 16)[0] * 0.99
+    sig = inv_preemphasis(sig)
 
     sig_Length = sig.shape[0] / hp_Dict['Sound']['Sample_Rate'] * 1000  #ms
     if not range_Ignore and (sig_Length < hp_Dict['Train']['Min_Wav_Length'] or sig_Length > hp_Dict['Train']['Max_Wav_Length']):
@@ -64,7 +65,8 @@ def Spectrogram_Generate(path, top_db= 60, range_Ignore = False):
         sr = hp_Dict['Sound']['Sample_Rate']
         )[0]
     sig = preemphasis(sig)
-    sig = librosa.effects.trim(sig, top_db= top_db)[0] * 0.99
+    sig = librosa.effects.trim(sig, top_db= top_db, frame_length= 32, hop_length= 16)[0] * 0.99
+    sig = inv_preemphasis(sig)
 
     sig_Length = sig.shape[0] / hp_Dict['Sound']['Sample_Rate'] * 1000  #ms
     if not range_Ignore and (sig_Length < hp_Dict['Train']['Min_Wav_Length'] or sig_Length > hp_Dict['Train']['Max_Wav_Length']):
