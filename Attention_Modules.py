@@ -455,7 +455,7 @@ class BahdanauMonotonicAttention(tf.keras.layers.AdditiveAttention):
         normalize= False,
         **kwargs
         ):
-        super(BahdanauMonotonicAttention, self).__init__(use_scale= True, **kwargs)
+        super(BahdanauMonotonicAttention, self).__init__(use_scale= False, **kwargs)
         
         self.size = size
         self.sigmoid_noise = sigmoid_noise
@@ -635,10 +635,10 @@ class StepwiseMonotonicAttention(BahdanauMonotonicAttention):
 
         pad = tf.zeros([tf.shape(p_choose_i)[0], 1, 1], dtype=p_choose_i.dtype)    # [Batch_size, 1, 1]
 
-        attention = previous_alignment * p_choose_i + tf.concat(
+        alignment = previous_alignment * p_choose_i + tf.concat(
             [pad, previous_alignment[:, :, :-1] * (1.0 - p_choose_i[:, :, :-1])], axis= -1)
 
-        return attention
+        return alignment
 
 
 class DynamicConvolutionAttention(tf.keras.layers.AdditiveAttention):

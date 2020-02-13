@@ -26,7 +26,7 @@
             }
         },
         "Style_Token": {
-            "Size": 256,
+            "Size": 512,
             "Embedding": {
                 "Size": 256
             },
@@ -80,15 +80,15 @@
             },
             "Attention": {
                 "Type": ["SMA"],
-                "Size": [512]
+                "Size": [128]
             },
             "Post_RNN": {
                 "Count": 2,
                 "Size": 256,
                 "Zoneout": 0.0
             },
-            "Inference_Step_Reduction": 5,
-            "Max_Step": 800
+            "Inference_Step_Reduction": 1,
+            "Max_Step": 200
         }
     },
 
@@ -121,7 +121,7 @@
     "Train": {
         "Pattern_Path": "C:/Pattern/GST.Pattern.LJVCTK",
         "Metadata_File": "METADATA.PICKLE",
-        "Batch_Size": 88,
+        "Batch_Size": 32,
         "Pattern_Sorting": true,
         "Min_Wav_Length": 500,
         "Max_Wav_Length": 10000,
@@ -133,16 +133,17 @@
             "Beta2": 0.999,
             "Epsilon": 1e-4
         },
-        "Use_L2_Loss": false,
+        "Use_L2_Loss": true,
         "Inference_Timing": 1000,
         "Checkpoint_Save_Timing": 1000,
 
-        "Sequential_Pattern": false
+        "Sequential_Pattern": false,
+        "Initial_Inference": false
     },
 
     "Use_Mixed_Precision": true,
-    "Inference_Path": "D:/GST.Results/GST.LJVCTK.SMA.R5/Inference",
-    "Checkpoint_Path": "D:/GST.Results/GST.LJVCTK.SMA.R5/Checkpoint",
+    "Inference_Path": "D:/GST.Results/GST.LJVCTK.SMA.R1/Inference",
+    "Checkpoint_Path": "D:/GST.Results/GST.LJVCTK.SMA.R1/Checkpoint",
     "Device": "0"
     
 }

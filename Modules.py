@@ -67,7 +67,6 @@ class Style_Token_Layer(tf.keras.layers.Layer): #Attention which is in layer mus
             shape= [hp_Dict['GST']['Style_Token']['Size'], hp_Dict['GST']['Style_Token']['Embedding']['Size']],
             initializer= tf.keras.initializers.TruncatedNormal(stddev= 0.5),
             trainable= True,
-
             )
 
     def call(self, inputs):
@@ -191,13 +190,11 @@ class Tacotron_Decoder(tf.keras.Model):
                     )
             elif attention_Type == 'BMA':
                 self.layer_Dict['Attention_{}'.format(index)] = BahdanauMonotonicAttention(
-                    size= size,
-                    use_scale= True
+                    size= size
                     )
             elif attention_Type == 'SMA':
                 self.layer_Dict['Attention_{}'.format(index)] = StepwiseMonotonicAttention(
-                    size= size,
-                    normalize= True
+                    size= size
                     )
             elif attention_Type == 'LSA':
                 self.layer_Dict['Attention_{}'.format(index)] = LocationSensitiveAttention(
@@ -506,6 +503,80 @@ class ExponentialDecay(tf.keras.optimizers.schedules.ExponentialDecay):
         config_dict['min_learning_rate'] = self.min_learning_rate
 
         return config_dict
+
+class ZoneoutLSTMLayer(tf.keras.layers.Layer):
+    '''
+    tf.keras.layers.LSTM does not work on GPU when 'recurrrent_dropout > 0'.
+    '''
+
+    def __init__(self, size, activation= 'tanh', recurrent_activation= 'sigmoid', zoneout_rate= 0.1):
+        super(ZoneoutLSTMLayer, self).__init__()
+        self.size = size
+        self.activation = tf.keras.activations.get(activation)
+        self.recurrent_activation = tf.keras.activations.get(recurrent_activation)
+        self.zoneout_rate = zoneout_rate
+
+    def build(self, input_shapes):        
+        self.kernel = self.add_weight(
+            name= 'kernel',
+            shape= [input_shapes.get_shape()[-1] + self.size, 4 * self.size],
+            trainable= True,
+            )
+        self.bias = self.add_weight(
+            name= 'bias',
+            shape= [4 * self.size],
+            trainable= True,
+            )
+        self.forget_bias = 1.0
+
+        self.built = True
+
+    def call(self, inputs, training):
+        cells, hiddens = self.initial_states(tf.shape(inputs)[0], inputs.dtype)
+        
+        initial_Step = tf.constant(0)
+        def body(step, cells, hiddens):
+            input_step = tf.expand_dims(inputs[:, step], axis= 1) #[Batch, 1, Input_Dim]
+            c_prev = hiddens[:, -1] #[Batch, Hidden_dim]
+            m_prev = hiddens[:, -1] #[Batch, Hidden_dim]
+
+            lstm_matrix = tf.matmul(tf.concat([input_step, m_prev], axis= -1), self.kernel) + self.bias
+            i, j, f, o = tf.split(lstm_matrix, num_or_size_splits= 4)
+
+            c = self.recurrent_activation(f + self.forget_bias) * c_prev + self.recurrent_activation(i) * self.activation(j)
+            m = self.recurrent_activation(o) * self.activation(c)
+
+            zoneout_c = (1 - self.zoneout_rate) * self.droput_no_scale(c - c_prev, self.zoneout_rate, training) + c_prev
+            zoneout_m = (1 - self.zoneout_rate) * self.droput_no_scale(m - m_prev, self.zoneout_rate, training) + m_prev
+
+            return step + 1, tf.concat([cells, zoneout_c], axis= 1),  tf.concat([hiddens, zoneout_m], axis= 1)
+
+        _, _, hiddens = tf.while_loop(
+            cond= lambda step, cells, hiddens: tf.less(step, tf.shape(inputs)[1]),
+            body= body,
+            loop_vars= [initial_Step, cells, hiddens],
+            shape_invariants= [
+                initial_Step.get_shape(),
+                tf.TensorShape([None, None, self.size]),
+                tf.TensorShape([None, None, self.size])
+                ]
+            )
+
+        return hiddens
+
+    def dropout_no_scale(self, inputs, rate, training):
+        return tf.cond(
+            training,
+            true_fn= lambda: inputs * tf.floor(tf.random.uniform(tf.shape(inputs)) + (1.0 - rate)),
+            false_fn= lambda: inputs
+            )
+
+    def initial_states(self, batch_size, dtype):
+        return (
+            tf.zeros((batch_size, 1, self.size), dtype= dtype),
+            tf.zeros((batch_size, 1, self.size), dtype= dtype)
+            )
+
 
 
 if __name__ == "__main__":
