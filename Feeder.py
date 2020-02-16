@@ -132,7 +132,7 @@ class Feeder:
                     ])  #initial frame
                 
                 padded_Length = np.maximum(new_Mel_Pattern.shape[1], new_Spectrogram_Pattern.shape[1])
-                padded_Length = int(np.ceil(padded_Length / hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction']) * hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'])
+                padded_Length = int(np.ceil(padded_Length / hp_Dict['Inference_Step_Reduction']) * hp_Dict['Inference_Step_Reduction'])
                 new_Mel_Pattern = np.hstack([
                     new_Mel_Pattern,
                     np.zeros(shape=(pattern_Count, padded_Length - new_Mel_Pattern.shape[1] + 1, hp_Dict['Sound']['Mel_Dim']), dtype= np.float32)

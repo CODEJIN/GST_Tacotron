@@ -1,6 +1,6 @@
 import tensorflow as tf
 import json
-from Attention_Modules import DotProductAttention, BahdanauAttention, MultiHeadAttention, LocationSensitiveAttention, DynamicConvolutionAttention, BahdanauMonotonicAttention, StepwiseMonotonicAttention
+from .Attention.Layers import DotProductAttention, BahdanauAttention, MultiHeadAttention, LocationSensitiveAttention, DynamicConvolutionAttention, BahdanauMonotonicAttention, StepwiseMonotonicAttention
 
 
 with open('Hyper_Parameters.json', 'r') as f:
@@ -9,127 +9,31 @@ with open('Hyper_Parameters.json', 'r') as f:
 with open(hp_Dict['Token_JSON_Path'], 'r') as f:
     token_Index_Dict = json.load(f)
 
-class Reference_Encoder(tf.keras.Model):
-    def __init__(self):        
-        super(Reference_Encoder, self).__init__()
-        self.layer_Dict = {}
-
-        for index, (filters, kernel_Size, strides) in enumerate(zip(
-            hp_Dict['GST']['Reference_Encoder']['Conv']['Filters'],
-            hp_Dict['GST']['Reference_Encoder']['Conv']['Kernel_Size'],
-            hp_Dict['GST']['Reference_Encoder']['Conv']['Strides']
-            )):
-            self.layer_Dict['Conv2D_{}'.format(index)] = tf.keras.layers.Conv2D(
-                filters= filters,
-                kernel_size= kernel_Size,
-                strides= strides,
-                padding='same'
-                )
-            self.layer_Dict['RNN'] = tf.keras.layers.GRU(
-                units= hp_Dict['GST']['Reference_Encoder']['RNN']['Size'],
-                return_sequences= False
-                )
-            self.layer_Dict['Dense'] = tf.keras.layers.Dense(
-                units= hp_Dict['GST']['Reference_Encoder']['Dense']['Size'],
-                activation= 'tanh'
-                )
-
-    def call(self, inputs, training= False):
-        '''
-        inputs: [Batch, Time, Mel_Dim]
-        '''
-        new_Tensor = tf.expand_dims(inputs, axis= -1)   #[Batch, Time, Mel_Dim, 1]
-        for index in range(len(hp_Dict['GST']['Reference_Encoder']['Conv']['Filters'])):
-            new_Tensor = self.layer_Dict['Conv2D_{}'.format(index)](new_Tensor)
-        
-        batch_Size, time_Step = tf.shape(new_Tensor)[0], tf.shape(new_Tensor)[1]
-        height, width = new_Tensor.get_shape().as_list()[2:]
-        new_Tensor = tf.reshape(
-            new_Tensor,
-            shape= [batch_Size, time_Step, height * width]
-            )
-        new_Tensor = self.layer_Dict['RNN'](new_Tensor)
-
-        return self.layer_Dict['Dense'](new_Tensor)
-
-class Style_Token_Layer(tf.keras.layers.Layer): #Attention which is in layer must be able to access directly.
+class Encoder(tf.keras.Model):
     def __init__(self):
-        super(Style_Token_Layer, self).__init__()
-        
-        self.layer_Dict = {}
-        self.layer_Dict['Attention'] = MultiHeadAttention(
-            num_heads= hp_Dict['GST']['Style_Token']['Attention']['Head'],
-            size= hp_Dict['GST']['Style_Token']['Attention']['Size']
-            )
-
-        self.gst_tokens = self.add_weight(
-            name= 'gst_tokens',
-            shape= [hp_Dict['GST']['Style_Token']['Size'], hp_Dict['GST']['Style_Token']['Embedding']['Size']],
-            initializer= tf.keras.initializers.TruncatedNormal(stddev= 0.5),
-            trainable= True,
-            )
-
-    def call(self, inputs):
-        '''
-        inputs: Reference_Encoder tensor
-        '''
-        tiled_GST_Tokens = tf.tile(
-            tf.expand_dims(tf.tanh(self.gst_tokens), axis=0),
-            [tf.shape(inputs)[0], 1, 1]
-            )   #[Token_Dim, Emedding_Dim] -> [Batch, Token_Dim, Emedding_Dim]
-        new_Tensor = tf.expand_dims(inputs, axis= 1)    #[Batch, R_dim] -> [Batch, 1, R_dim]
-        new_Tensor, _ = self.layer_Dict['Attention'](
-            inputs= [new_Tensor, tiled_GST_Tokens]  #[query, value]
-            )   #[Batch, 1, Att_dim]
-        
-        return new_Tensor
-
-class GST_Concated_Encoder(tf.keras.layers.Layer):
-    def __init__(self):
-        super(GST_Concated_Encoder, self).__init__()
-        
-        self.layer_Dict = {}
-        self.layer_Dict['Reference_Encoder'] = Reference_Encoder()
-        self.layer_Dict['Style_Token_Layer'] = Style_Token_Layer()
-
-    def call(self, inputs):
-        '''
-        inputs: [encoder, mels_for_gst]
-        '''
-        encoders, mels_for_gst = inputs
-        
-        new_Tensor = self.layer_Dict['Reference_Encoder'](mels_for_gst[:, 1:])  #Initial frame deletion
-        new_Tensor = self.layer_Dict['Style_Token_Layer'](new_Tensor)
-        new_Tensor = tf.tile(new_Tensor, [1, tf.shape(encoders)[1], 1])
-        new_Tensor = tf.concat([encoders, new_Tensor], axis=-1)
-        
-        return new_Tensor
-
-class Tacotron_Encoder(tf.keras.Model):
-    def __init__(self):
-        super(Tacotron_Encoder, self).__init__()
+        super(Encoder, self).__init__()
 
     def build(self, input_shapes):
         self.layer_Dict = {}
         self.layer_Dict['Embedding'] = tf.keras.layers.Embedding(
             input_dim= len(token_Index_Dict),
-            output_dim= hp_Dict['Tacotron']['Encoder']['Embedding']['Size'],
+            output_dim= hp_Dict['Tacotron1']['Encoder']['Embedding']['Size'],
             )
         self.layer_Dict['Prenet'] = Prenet(
-            sizes= hp_Dict['Tacotron']['Encoder']['Prenet']['Size'],
-            dropout_rate= hp_Dict['Tacotron']['Encoder']['Prenet']['Dropout_Rate']
+            sizes= hp_Dict['Tacotron1']['Encoder']['Prenet']['Size'],
+            dropout_rate= hp_Dict['Tacotron1']['Encoder']['Prenet']['Dropout_Rate']
             )
         self.layer_Dict['CBHG'] = CBHG(
-            convbank_stack_count= hp_Dict['Tacotron']['Encoder']['CBHG']['Conv_Bank']['Stack_Count'],
-            convbank_filters= hp_Dict['Tacotron']['Encoder']['CBHG']['Conv_Bank']['Filters'],
-            pool_size= hp_Dict['Tacotron']['Encoder']['CBHG']['Pool']['Pool_Size'],
-            pool_strides= hp_Dict['Tacotron']['Encoder']['CBHG']['Pool']['Strides'],
-            project_conv_filters= hp_Dict['Tacotron']['Encoder']['CBHG']['Conv1D']['Filters'],
-            project_conv_kernel_size= hp_Dict['Tacotron']['Encoder']['CBHG']['Conv1D']['Kernel_Size'],
-            highwaynet_count= hp_Dict['Tacotron']['Encoder']['CBHG']['Highwaynet']['Count'],
-            highwaynet_size= hp_Dict['Tacotron']['Encoder']['CBHG']['Highwaynet']['Size'],
-            rnn_size= hp_Dict['Tacotron']['Encoder']['CBHG']['RNN']['Size'],
-            rnn_zoneout_rate= hp_Dict['Tacotron']['Encoder']['CBHG']['RNN']['Zoneout'],
+            convbank_stack_count= hp_Dict['Tacotron1']['Encoder']['CBHG']['Conv_Bank']['Stack_Count'],
+            convbank_filters= hp_Dict['Tacotron1']['Encoder']['CBHG']['Conv_Bank']['Filters'],
+            pool_size= hp_Dict['Tacotron1']['Encoder']['CBHG']['Pool']['Pool_Size'],
+            pool_strides= hp_Dict['Tacotron1']['Encoder']['CBHG']['Pool']['Strides'],
+            project_conv_filters= hp_Dict['Tacotron1']['Encoder']['CBHG']['Conv1D']['Filters'],
+            project_conv_kernel_size= hp_Dict['Tacotron1']['Encoder']['CBHG']['Conv1D']['Kernel_Size'],
+            highwaynet_count= hp_Dict['Tacotron1']['Encoder']['CBHG']['Highwaynet']['Count'],
+            highwaynet_size= hp_Dict['Tacotron1']['Encoder']['CBHG']['Highwaynet']['Size'],
+            rnn_size= hp_Dict['Tacotron1']['Encoder']['CBHG']['RNN']['Size'],
+            rnn_zoneout_rate= hp_Dict['Tacotron1']['Encoder']['CBHG']['RNN']['Zoneout'],
             )
 
         self.bulit = True
@@ -144,24 +48,24 @@ class Tacotron_Encoder(tf.keras.Model):
         
         return new_Tensor
 
-class Tacotron_Decoder(tf.keras.Model):
+class Decoder(tf.keras.Model):
     def __init__(self):
-        super(Tacotron_Decoder, self).__init__()
+        super(Decoder, self).__init__()
 
     def build(self, input_shapes):        
         self.layer_Dict = {}
         self.layer_Dict['Prenet'] = tf.keras.Sequential()
         self.layer_Dict['Prenet'].add(Prenet(
-            sizes= hp_Dict['Tacotron']['Decoder']['Prenet']['Size'],
-            dropout_rate= hp_Dict['Tacotron']['Decoder']['Prenet']['Dropout_Rate']
+            sizes= hp_Dict['Tacotron1']['Decoder']['Prenet']['Size'],
+            dropout_rate= hp_Dict['Tacotron1']['Decoder']['Prenet']['Dropout_Rate']
             ))
 
         pre_RNN_Cell_List = [
             tf.keras.layers.LSTMCell(
                 units= size,
-                recurrent_dropout= hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Zoneout'],    #Paper is '0.1'. However, TF2.0 cuDNN implementation does not support that yet.
+                recurrent_dropout= hp_Dict['Tacotron1']['Decoder']['Pre_RNN']['Zoneout'],    #Paper is '0.1'. However, TF2.0 cuDNN implementation does not support that yet.
                 )  
-            for size in hp_Dict['Tacotron']['Decoder']['Pre_RNN']['Size']
+            for size in hp_Dict['Tacotron1']['Decoder']['Pre_RNN']['Size']
             ]
         self.layer_Dict['Pre_RNN'] = tf.keras.layers.RNN(
             cell= pre_RNN_Cell_List,
@@ -169,8 +73,8 @@ class Tacotron_Decoder(tf.keras.Model):
             )
 
         for index, (attention_Type, size) in enumerate(zip(
-            hp_Dict['Tacotron']['Decoder']['Attention']['Type'],
-            hp_Dict['Tacotron']['Decoder']['Attention']['Size']
+            hp_Dict['Tacotron1']['Decoder']['Attention']['Type'],
+            hp_Dict['Tacotron1']['Decoder']['Attention']['Size']
             )):
             if attention_Type == 'DPA':
                 self.layer_Dict['Attention_{}'.format(index)] = DotProductAttention(
@@ -222,18 +126,18 @@ class Tacotron_Decoder(tf.keras.Model):
                     )
 
         self.layer_Dict['Correction'] = tf.keras.layers.Dense(
-            units= hp_Dict['Tacotron']['Decoder']['Post_RNN']['Size']
+            units= hp_Dict['Tacotron1']['Decoder']['Post_RNN']['Size']
             )
         
-        for index in range(hp_Dict['Tacotron']['Decoder']['Post_RNN']['Count']):
+        for index in range(hp_Dict['Tacotron1']['Decoder']['Post_RNN']['Count']):
             self.layer_Dict['Post_RNN_{}'.format(index)] = tf.keras.layers.LSTM(
-                units= hp_Dict['Tacotron']['Decoder']['Post_RNN']['Size'],
-                recurrent_dropout= hp_Dict['Tacotron']['Decoder']['Post_RNN']['Zoneout'], #Paper is '0.1'. However, TF2.0 cuDNN implementation does not support that yet.
+                units= hp_Dict['Tacotron1']['Decoder']['Post_RNN']['Size'],
+                recurrent_dropout= hp_Dict['Tacotron1']['Decoder']['Post_RNN']['Zoneout'], #Paper is '0.1'. However, TF2.0 cuDNN implementation does not support that yet.
                 return_sequences= True
                 )
 
         self.layer_Dict['Projection'] = tf.keras.layers.Dense(
-            units= hp_Dict['Sound']['Mel_Dim'] * hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction']
+            units= hp_Dict['Sound']['Mel_Dim'] * hp_Dict['Inference_Step_Reduction']
             )
 
         self.built = True
@@ -246,8 +150,8 @@ class Tacotron_Decoder(tf.keras.Model):
 
         new_Tensor = tf.cond(
             pred= tf.convert_to_tensor(training),
-            true_fn= lambda: mels[:, 0:-1:hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'], :],
-            false_fn= lambda: mels[:, 0::hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'], :]
+            true_fn= lambda: mels[:, 0:-1:hp_Dict['Inference_Step_Reduction'], :],
+            false_fn= lambda: mels[:, 0::hp_Dict['Inference_Step_Reduction'], :]
             )
         new_Tensor = self.layer_Dict['Prenet'](inputs= new_Tensor, training= training)
         
@@ -255,7 +159,7 @@ class Tacotron_Decoder(tf.keras.Model):
 
         attention_Tensor_List = []
         history_Tensor_List = []
-        for index in range(len(hp_Dict['Tacotron']['Decoder']['Attention']['Type'])):
+        for index in range(len(hp_Dict['Tacotron1']['Decoder']['Attention']['Type'])):
             attention_Tensor, history_Tensor = self.layer_Dict['Attention_{}'.format(index)](inputs= [new_Tensor, key])
             attention_Tensor_List.append(attention_Tensor)
             history_Tensor_List.append(history_Tensor)
@@ -264,7 +168,7 @@ class Tacotron_Decoder(tf.keras.Model):
 
         new_Tensor = self.layer_Dict['Correction'](inputs= new_Tensor)
 
-        for index in range(hp_Dict['Tacotron']['Decoder']['Post_RNN']['Count']):
+        for index in range(hp_Dict['Tacotron1']['Decoder']['Post_RNN']['Count']):
             new_Tensor = self.layer_Dict['Post_RNN_{}'.format(index)](inputs= new_Tensor, training= training) + new_Tensor
 
         new_Tensor = self.layer_Dict['Projection'](new_Tensor)  #[Batch, Time/Reduction, Mels*Reduction]
@@ -274,8 +178,8 @@ class Tacotron_Decoder(tf.keras.Model):
             new_Tensor,
             shape= [
                 batch_Size,
-                time * hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction'],
-                dimentions // hp_Dict['Tacotron']['Decoder']['Inference_Step_Reduction']
+                time * hp_Dict['Inference_Step_Reduction'],
+                dimentions // hp_Dict['Inference_Step_Reduction']
                 ]
             )   #[Batch, Time, Mels]
 
@@ -504,81 +408,6 @@ class ExponentialDecay(tf.keras.optimizers.schedules.ExponentialDecay):
 
         return config_dict
 
-class ZoneoutLSTMLayer(tf.keras.layers.Layer):
-    '''
-    tf.keras.layers.LSTM does not work on GPU when 'recurrrent_dropout > 0'.
-    '''
-
-    def __init__(self, size, activation= 'tanh', recurrent_activation= 'sigmoid', zoneout_rate= 0.1):
-        super(ZoneoutLSTMLayer, self).__init__()
-        self.size = size
-        self.activation = tf.keras.activations.get(activation)
-        self.recurrent_activation = tf.keras.activations.get(recurrent_activation)
-        self.zoneout_rate = zoneout_rate
-
-    def build(self, input_shapes):        
-        self.kernel = self.add_weight(
-            name= 'kernel',
-            shape= [input_shapes.get_shape()[-1] + self.size, 4 * self.size],
-            trainable= True,
-            )
-        self.bias = self.add_weight(
-            name= 'bias',
-            shape= [4 * self.size],
-            trainable= True,
-            )
-        self.forget_bias = 1.0
-
-        self.built = True
-
-    def call(self, inputs, training):
-        cells, hiddens = self.initial_states(tf.shape(inputs)[0], inputs.dtype)
-        
-        initial_Step = tf.constant(0)
-        def body(step, cells, hiddens):
-            input_step = tf.expand_dims(inputs[:, step], axis= 1) #[Batch, 1, Input_Dim]
-            c_prev = hiddens[:, -1] #[Batch, Hidden_dim]
-            m_prev = hiddens[:, -1] #[Batch, Hidden_dim]
-
-            lstm_matrix = tf.matmul(tf.concat([input_step, m_prev], axis= -1), self.kernel) + self.bias
-            i, j, f, o = tf.split(lstm_matrix, num_or_size_splits= 4)
-
-            c = self.recurrent_activation(f + self.forget_bias) * c_prev + self.recurrent_activation(i) * self.activation(j)
-            m = self.recurrent_activation(o) * self.activation(c)
-
-            zoneout_c = (1 - self.zoneout_rate) * self.droput_no_scale(c - c_prev, self.zoneout_rate, training) + c_prev
-            zoneout_m = (1 - self.zoneout_rate) * self.droput_no_scale(m - m_prev, self.zoneout_rate, training) + m_prev
-
-            return step + 1, tf.concat([cells, zoneout_c], axis= 1),  tf.concat([hiddens, zoneout_m], axis= 1)
-
-        _, _, hiddens = tf.while_loop(
-            cond= lambda step, cells, hiddens: tf.less(step, tf.shape(inputs)[1]),
-            body= body,
-            loop_vars= [initial_Step, cells, hiddens],
-            shape_invariants= [
-                initial_Step.get_shape(),
-                tf.TensorShape([None, None, self.size]),
-                tf.TensorShape([None, None, self.size])
-                ]
-            )
-
-        return hiddens
-
-    def dropout_no_scale(self, inputs, rate, training):
-        return tf.cond(
-            training,
-            true_fn= lambda: inputs * tf.floor(tf.random.uniform(tf.shape(inputs)) + (1.0 - rate)),
-            false_fn= lambda: inputs
-            )
-
-    def initial_states(self, batch_size, dtype):
-        return (
-            tf.zeros((batch_size, 1, self.size), dtype= dtype),
-            tf.zeros((batch_size, 1, self.size), dtype= dtype)
-            )
-
-
-
 if __name__ == "__main__":
     mels = tf.keras.layers.Input(shape=[None, 80], dtype= tf.float32)
     tokens = tf.keras.layers.Input(shape=[None], dtype= tf.int32)
@@ -592,12 +421,12 @@ if __name__ == "__main__":
     # enc = Tacotron_Encoder()(tokens)
     # dec = Tacotron_Decoder()(inputs=[enc, mels])
     
-    import numpy as np
-    tokens = np.random.randint(0, 33, size=(3, 52)).astype(np.int32)
-    mels = (np.random.rand(3, 50, 80).astype(np.float32) - 0.5) * 8
-    enc = Tacotron_Encoder()(inputs= tokens)    
-    dec, _ = Tacotron_Decoder()(inputs=[enc, mels])
-    spec = Vocoder_Taco1()(inputs= dec)
-    print(enc.get_shape())
-    print(dec.get_shape())
-    print(spec.get_shape())
+    # import numpy as np
+    # tokens = np.random.randint(0, 33, size=(3, 52)).astype(np.int32)
+    # mels = (np.random.rand(3, 50, 80).astype(np.float32) - 0.5) * 8
+    # enc = Tacotron_Encoder()(inputs= tokens)    
+    # dec, _ = Tacotron_Decoder()(inputs=[enc, mels])
+    # spec = Vocoder_Taco1()(inputs= dec)
+    # print(enc.get_shape())
+    # print(dec.get_shape())
+    # print(spec.get_shape())

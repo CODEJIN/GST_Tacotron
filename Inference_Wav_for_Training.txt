@@ -1,3 +1,4 @@
 ./Wav_for_Inference/VCTK.p226_002.wav
 ./Wav_for_Inference/VCTK.p329_009.wav
 ./Wav_for_Inference/VCTK.p376_003.wav
+./Wav_for_Inference/LJ.LJ050-0278.wav

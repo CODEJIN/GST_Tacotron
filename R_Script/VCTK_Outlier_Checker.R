@@ -108,4 +108,4 @@ ggsave(
   device = "png", width = 12, height = 12, units = "cm", dpi = 300
 )
 
-write.table(vctk_Length.Trim[c(1)], sprintf('%snonoutlier.txt', base_Dir),sep='\t', row.names=FALSE, quote= FALSE)
+write.table(vctk_Length.Trim[c(1)], sprintf('%svctk_nonoutlier.txt', base_Dir),sep='\t', row.names=FALSE, quote= FALSE)

@@ -12,7 +12,7 @@ class BahdanauAttention(tf.keras.layers.Layer):
     Refer: https://www.tensorflow.org/tutorials/text/nmt_with_attention
     '''
     def __init__(self, size):
-        super(BahdanauAttention, self).__init__()        
+        super(BahdanauAttention, self).__init__()
         self.size = size
 
     def build(self, input_shapes):
@@ -21,6 +21,8 @@ class BahdanauAttention(tf.keras.layers.Layer):
             'Value': tf.keras.layers.Dense(self.size),
             'V': tf.keras.layers.Dense(1)
             }
+
+        self.built = True
 
     def call(self, inputs):
         '''
@@ -42,6 +44,9 @@ class BahdanauAttention(tf.keras.layers.Layer):
         context_vector = tf.reduce_sum(attention_weights * values, axis=1)  #[Batch, T_v, Att_dim] -> [Batch, Att_dim]
 
         return context_vector, tf.squeeze(attention_weights, axis= -1)
+
+    def initial_alignment_fn(self, batch_size, key_time, dtype):
+        return tf.zeros((batch_size, key_time), dtype= dtype)
 
 class BahdanauMonotonicAttention(tf.keras.layers.Layer):
     '''
@@ -113,7 +118,7 @@ class BahdanauMonotonicAttention(tf.keras.layers.Layer):
         
         query = self.layer_Dict['Query'](query) # [Batch, Att_dim]
         value = self.layer_Dict['Value'](value) # [Batch, T_v, Att_dim]
-        key = self.layer_Dict['Key'](key) if len(inputs) > 3 else value   # [Batch, T_v, Att_dim]
+        key = self.layer_Dict['Key'](key) if len(inputs) == 4 else value   # [Batch, T_v, Att_dim]
         
         query = tf.expand_dims(query, 1)    # [Batch, 1, Att_dim]
         previous_alignment = tf.expand_dims(previous_alignment, axis= 1)  # [Batch, 1, T_v]
@@ -123,7 +128,7 @@ class BahdanauMonotonicAttention(tf.keras.layers.Layer):
             score= score,
             value= value,
             previous_alignment= previous_alignment
-            ) # [Batch, Att_dim], [Batch, T_v]
+            ) # [Batch, Att_dim], [Batch, 1, T_v]
 
         return context, alignment
 
@@ -149,14 +154,13 @@ class BahdanauMonotonicAttention(tf.keras.layers.Layer):
         value shape: [batch_size, T_v, Att_dim]`.
         previous_alignment shape: [batch_size, 1, T_v]`.
         
-
-        Return: [batch_size, Att_dim]
+        Return: [batch_size, Att_dim], [batch_size, T_v]
         '''
         score = tf.expand_dims(score, axis= 1)  #[Batch_size, 1, T_v]        
         alignment = self._monotonic_probability_fn(score, previous_alignment)   #[Batch_size, 1, T_v]
         context = tf.matmul(alignment, value)   #[Batch_size, 1, Att_dim]
         
-        return context, alignment
+        return tf.squeeze(context, axis= 1), tf.squeeze(alignment, axis= 1)
 
     def _monotonic_probability_fn(self, score, previous_alignment):
         if self.sigmoid_noise > 0.0:
@@ -190,6 +194,13 @@ class BahdanauMonotonicAttention(tf.keras.layers.Layer):
         x = tf.convert_to_tensor(x, name='x')
         tiny = np.finfo(x.dtype.as_numpy_dtype).tiny
         return tf.exp(tf.cumsum(tf.math.log(tf.clip_by_value(x, tiny, 1)), *args, **kwargs))
+
+    def initial_alignment_fn(self, batch_size, key_time, dtype):
+        return tf.one_hot(
+            indices= tf.zeros((batch_size), dtype= tf.int32),
+            depth= key_time,
+            dtype= dtype
+            )
 
 class StepwiseMonotonicAttention(BahdanauMonotonicAttention):
     '''

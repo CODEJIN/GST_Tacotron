@@ -264,7 +264,7 @@ def BC2013_Info_Load(bc2013_Path, max_Count= None):
     print('BC2013 info generated: {}'.format(len(bc2013_File_Path_List)))
     return bc2013_File_Path_List, bc2013_Text_Dict
 
-def Metadata_Generate(token_Index_Dict, max_Count= None):
+def Metadata_Generate(token_Index_Dict):
     new_Metadata_Dict = {
         'Token_Index_Dict': token_Index_Dict,        
         'Spectrogram_Dim': hp_Dict['Sound']['Spectrogram_Dim'],
