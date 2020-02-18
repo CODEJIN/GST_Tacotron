@@ -608,8 +608,7 @@ class BahdanauMonotonicAttention(tf.keras.layers.AdditiveAttention):
 
 class StepwiseMonotonicAttention(BahdanauMonotonicAttention):
     '''
-    Refer: https://github.com/tensorflow/tensorflow/blob/r2.0/tensorflow/python/keras/layers/dense_attention.py#L307-L440
-    This is for attention size managing and getting the attention history(scores).
+    Refer: https://gist.github.com/dy-octa/38a7638f75c21479582d7391490df37c
     '''
     def __init__(
         self,

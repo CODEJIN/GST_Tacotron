@@ -264,6 +264,44 @@ def BC2013_Info_Load(bc2013_Path, max_Count= None):
     print('BC2013 info generated: {}'.format(len(bc2013_File_Path_List)))
     return bc2013_File_Path_List, bc2013_Text_Dict
 
+def FV_Info_Load(fv_Path, max_Count= None):
+    text_Path_List = []
+    for root, _, file_Name_List in os.walk(fv_Path):
+        for file in file_Name_List:
+            if os.path.splitext(file)[1] == '.data':
+                text_Path_List.append(os.path.join(root, file).replace('\\', '/'))
+
+    fv_File_Path_List = []
+    fv_Text_Dict = {}
+    fv_Speaker_Dict = {}
+    for text_Path in text_Path_List:        
+        speaker = text_Path.split('/')[-3].split('_')[2].upper()
+        with open(text_Path, 'r') as f:
+            lines = f.readlines()
+        for line in lines:
+            file_Path, text, _ = line.strip().split('"')
+
+            file_Path = file_Path.strip().split(' ')[1]
+            wav_File_Path = os.path.join(
+                os.path.split(text_Path)[0].replace('etc', 'wav'),
+                '{}.wav'.format(file_Path)
+                ).replace('\\', '/')
+
+            text = Text_Filtering(text)
+            if text is None:
+                continue
+            fv_File_Path_List.append(wav_File_Path)
+            fv_Text_Dict[wav_File_Path] = text
+            fv_Speaker_Dict[wav_File_Path] = speaker
+
+    if not max_Count is None:
+        fv_File_Path_List = fv_File_Path_List[:max_Count]
+
+    print('FV info generated: {}'.format(len(fv_File_Path_List)))
+    return fv_File_Path_List, fv_Text_Dict, fv_Speaker_Dict
+
+
+
 def Metadata_Generate(token_Index_Dict):
     new_Metadata_Dict = {
         'Token_Index_Dict': token_Index_Dict,        
@@ -303,6 +341,7 @@ if __name__ == '__main__':
     argParser.add_argument("-ls", "--ls_path", required=False)
     argParser.add_argument("-timit", "--timit_path", required=False)
     argParser.add_argument("-bc2013", "--bc2013_path", required=False)
+    argParser.add_argument("-fv", "--fv_path", required=False)
     argParser.add_argument("-all", "--all_save", action='store_true') #When this parameter is False, only correct time range patterns are generated.
     argParser.set_defaults(all_save = False)
     argParser.add_argument("-mc", "--max_count", required=False)
@@ -330,6 +369,9 @@ if __name__ == '__main__':
     if not argument_Dict['bc2013_path'] is None:
         bc2013_File_Path_List, bc2013_Text_List_Dict = BC2013_Info_Load(bc2013_Path= argument_Dict['bc2013_path'], max_Count= argument_Dict['max_count'])
         total_Pattern_Count += len(bc2013_File_Path_List)
+    if not argument_Dict['fv_path'] is None:
+        fv_File_Path_List, fv_Text_List_Dict, fv_Speaker_Dict = FV_Info_Load(fv_Path= argument_Dict['fv_path'], max_Count= argument_Dict['max_count'])
+        total_Pattern_Count += len(fv_File_Path_List)
 
     if total_Pattern_Count == 0:
         raise ValueError('Total pattern count is zero.')
@@ -429,6 +471,26 @@ if __name__ == '__main__':
                     'BC2013 {:05d}/{:05d}    Total {:05d}/{:05d}'.format(
                         index,
                         len(bc2013_File_Path_List),
+                        total_Generated_Pattern_Count,
+                        total_Pattern_Count
+                        ),
+                    60,
+                    argument_Dict['all_save']
+                    )
+                total_Generated_Pattern_Count += 1
+
+        if not argument_Dict['fv_path'] is None:
+            for index, file_Path in enumerate(fv_File_Path_List):
+                pe.submit(
+                    Pattern_File_Generate,
+                    file_Path,
+                    fv_Text_List_Dict[file_Path],
+                    token_Index_Dict,
+                    'FV',
+                    '{}.'.format(fv_Speaker_Dict[file_Path]),
+                    'FV {:05d}/{:05d}    Total {:05d}/{:05d}'.format(
+                        index,
+                        len(fv_File_Path_List),
                         total_Generated_Pattern_Count,
                         total_Pattern_Count
                         ),

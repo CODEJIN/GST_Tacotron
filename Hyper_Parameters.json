@@ -11,7 +11,7 @@
     "Token_JSON_Path": "Token_Index_Dict.ENG.json",
 
     "GST": {
-        "Use": false,
+        "Use": true,
         "Reference_Encoder": {
             "Conv": {
                 "Filters": [32, 32, 64, 64, 128, 128],
@@ -160,7 +160,7 @@
     },
 
     "Train": {
-        "Pattern_Path": "C:/Pattern/GST.Pattern.LJ",
+        "Pattern_Path": "C:/Pattern/GST.Pattern.LJFV",
         "Metadata_File": "METADATA.PICKLE",
         "Batch_Size": 48,
         "Pattern_Sorting": true,
@@ -183,8 +183,8 @@
     },
 
     "Use_Mixed_Precision": true,
-    "Inference_Path": "D:/GST.Results/Taco2.LJ.SMA.R3/Inference",
-    "Checkpoint_Path": "D:/GST.Results/Taco2.LJ.SMA.R3/Checkpoint",
+    "Inference_Path": "D:/GST.Results/Taco2.GST.LJFV.SMA.R3/Inference",
+    "Checkpoint_Path": "D:/GST.Results/Taco2.GST.LJFV.SMA.R3/Checkpoint",
     "Device": "0"
     
 }

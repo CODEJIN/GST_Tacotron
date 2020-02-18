@@ -1,4 +1,8 @@
-./Wav_for_Inference/VCTK.p226_002.wav
-./Wav_for_Inference/VCTK.p329_009.wav
-./Wav_for_Inference/VCTK.p376_003.wav
+./Wav_for_Inference/FV.AWB.arctic_a0001.wav
+./Wav_for_Inference/FV.BDL.arctic_a0002.wav
+./Wav_for_Inference/FV.CLB.arctic_a0003.wav
+./Wav_for_Inference/FV.JMK.arctic_a0004.wav
+./Wav_for_Inference/FV.KSP.arctic_a0005.wav
+./Wav_for_Inference/FV.RMS.arctic_a0006.wav
+./Wav_for_Inference/FV.SLT.arctic_a0007.wav
 ./Wav_for_Inference/LJ.LJ050-0278.wav

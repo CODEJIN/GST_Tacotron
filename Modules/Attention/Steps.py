@@ -50,7 +50,10 @@ class BahdanauAttention(tf.keras.layers.Layer):
 
 class BahdanauMonotonicAttention(tf.keras.layers.Layer):
     '''
-    Refer: https://www.tensorflow.org/tutorials/text/nmt_with_attention
+    Refer
+    https://www.tensorflow.org/tutorials/text/nmt_with_attention
+    https://github.com/tensorflow/addons/blob/v0.7.1/tensorflow_addons/seq2seq/attention_wrapper.py#L1004-L1175
+
     '''
     def __init__(self, size, sigmoid_noise= 0.0, normalize= False, **kwargs):
         super(BahdanauMonotonicAttention, self).__init__()
@@ -204,7 +207,7 @@ class BahdanauMonotonicAttention(tf.keras.layers.Layer):
 
 class StepwiseMonotonicAttention(BahdanauMonotonicAttention):
     '''
-    Refer: https://www.tensorflow.org/tutorials/text/nmt_with_attention
+    Refer: https://gist.github.com/dy-octa/38a7638f75c21479582d7391490df37c
     '''
     def __init__(self, size, sigmoid_noise= 2.0, normalize= False, **kwargs):
         super(StepwiseMonotonicAttention, self).__init__(size, sigmoid_noise, normalize, **kwargs)

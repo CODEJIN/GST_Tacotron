@@ -1,6 +1,6 @@
 import tensorflow as tf
 import json
-from .Attention.layers import MultiHeadAttention
+from .Attention.Layers import MultiHeadAttention
 
 
 with open('Hyper_Parameters.json', 'r') as f:
