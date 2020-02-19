@@ -190,42 +190,42 @@ new_Tacotron2.Inference(
 * Mel for GST: FastVox AWB A0001
 * Sentence: The grass is always greener on the other side of the fence.
 
-![IDX_0](./Figures/20200219.203127.IDX_0.png)
+![IDX_0](./Figures/20200219.203127.IDX_0.PNG)
 ##### 
 * Mel for GST: FastVox BDL A0002
 * Sentence: Strike while the iron is hot.
 
-![IDX_1](./Figures/20200219.203127.IDX_1.png)
+![IDX_1](./Figures/20200219.203127.IDX_1.PNG)
 ##### 
 * Mel for GST: FastVox CLB A0003
 * Sentence: A creative artist works on his next composition because he was not satisfied with his previous one.
 
-![IDX_2](./Figures/20200219.203127.IDX_2.png)
+![IDX_2](./Figures/20200219.203127.IDX_2.PNG)
 ##### 
 * Mel for GST: FastVox JMK A0004
 * Sentence: You cannot make an omelet without breaking a few eggs.
 
-![IDX_3](./Figures/20200219.203127.IDX_3.png)
+![IDX_3](./Figures/20200219.203127.IDX_3.PNG)
 ##### 
 * Mel for GST: FastVox KSP A0005.wav
 * Sentence: Death is like a fisherman who catches fish in his net and leaves them for a while in the water. The fish is still swimming but the net is around him, and the fisherman will draw him up.
 
-![IDX_4](./Figures/20200219.203127.IDX_4.png)
+![IDX_4](./Figures/20200219.203127.IDX_4.PNG)
 ##### 
 * Mel for GST: FastVox.RMS A0006
 * Sentence: A man who marries a woman to educate her falls a victim to the same fallacy as the woman who marries a man to reform him.
 
-![IDX_5](./Figures/20200219.203127.IDX_5.png)
+![IDX_5](./Figures/20200219.203127.IDX_5.PNG)
 ##### 
 * Mel for GST: FastVox.SLT A0007
 * Sentence: Birds of a feather flock together.
 
-![IDX_6](./Figures/20200219.203127.IDX_6.png)
+![IDX_6](./Figures/20200219.203127.IDX_6.PNG)
 ##### 
 * Mel for GST: LJspeech LJ050-0278
 * Sentence: Too many cooks in the kitchen spoil the broth.
 
-![IDX_7](./Figures/20200219.203127.IDX_7.png)
+![IDX_7](./Figures/20200219.203127.IDX_7.PNG)
 
 # Trained checkpoint
 Currently training...
