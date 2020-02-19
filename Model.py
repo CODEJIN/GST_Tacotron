@@ -17,9 +17,9 @@ from scipy.io import wavfile
 with open('Hyper_Parameters.json', 'r') as f:
     hp_Dict = json.load(f)
 
-# if hp_Dict['Version'] == 1:
+# if hp_Dict['Taco_Version'] == 1:
 #     import Modules_Taco1 as Modules
-# elif hp_Dict['Version'] == 2:
+# elif hp_Dict['Taco_Version'] == 2:
 #     import Modules_Taco2 as Modules
 # else:
 #     raise ValueError('Unexpected tactoron version hyperparameters: {}'.format(hp_Dict['Version']))

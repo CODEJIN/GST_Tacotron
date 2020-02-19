@@ -37,7 +37,7 @@
         }
     },
 
-    "Version": 2,
+    "Taco_Version": 2,
 
     "Tacotron1": {
         "Encoder": {
