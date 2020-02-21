@@ -9,6 +9,9 @@ Shen, J., Pang, R., Weiss, R. J., Schuster, M., Jaitly, N., Yang, Z., ... & Saur
 Wang, Y., Skerry-Ryan, R. J., Stanton, D., Wu, Y., Weiss, R. J., Jaitly, N., ... & Le, Q. (2017). Tacotron: Towards end-to-end speech synthesis. arXiv preprint arXiv:1703.10135.
 ```
 
+# Requirements
+Please see the 'Requirements.txt'
+
 # Structrue
 ![Structure](./Figures/Structure.png)
 
@@ -44,10 +47,6 @@ Before proceeding, please set the pattern, inference, and checkpoint paths in 'H
     * In 'Reference_Encoder/Conv', 'Filters', 'Kernel_Size', and 'Strides' must be lists of the same size.
     * In 'Style_Token/Attention', 'Size' must be divied by 'Head'.
 
-* Taco_Version
-    * Setting the tacotron version.
-    * Currently, this hyper parameter is ignored because tacotron 1 does not implemented.
-
 * Tacotron1
     * Setting the parameters of tacotron 1.
     * If 'Taco_Version' is 2, the parameters of this part will be ignored.
@@ -74,17 +73,24 @@ Before proceeding, please set the pattern, inference, and checkpoint paths in 'H
 * Train
     * Setting the parameters of training.
     
+* Taco_Version
+    * Setting the tacotron version.
+    * Currently, this hyper parameter is ignored because tacotron 1 does not implemented.
 * Use_Mixed_Precision
     * Setting the usage of mixed precision.
     * If using, the tensors are stored by 16bit, not 32bit.
     * The weights are stored by 32bit, so the model is compatible with checkpoints learned with different mixed precisions if the rest of the parameters are the same.
     * Usually, this parameter makes be possible to use larger batch size.
+    * In the unsupported machine, the speed is extreamly slower.
+    * When using, I recommend to increase the epsilon of ADAM to 1e-4 to prevent the underflow problem.
     * See the following reference for details.
         * https://www.tensorflow.org/api_docs/python/tf/keras/mixed_precision/experimental/Policy
 * Inference_Path
     * Setting the inference path
 * Checkpoint_Path
     * Setting the checkpoint path
+* Inference_Cut
+    * The figure and wav files will be cutted at stop token when this parameter is true.
 * Device
     * Setting which GPU device is used in multi-GPU enviornment.
     * Or, if using only CPU, please set '-1'.
@@ -154,7 +160,11 @@ from Model import GST_Tacotron
 new_GST_Tacotron = GST_Tacotron(is_Training= False)
 new_GST_Tacotron.Restore()
 ```
-3. Set the speaker's Wav path list and text list like the following example:
+3. Set the speaker's Wav path list and text list like the 
+
+__※The length of wav path must be 1 or same to text list.__
+
+following example:
 ```
 text_List = [
     'The grass is always greener on the other side of the fence.'
@@ -169,7 +179,6 @@ path_List = [
     './Wav_for_Inference/LJ.LJ050-0278.wav'
     ]
 ```
-__※The length of wav path must be 1 or same to text list.__
 
 4. Run following command:
 ```
@@ -181,54 +190,68 @@ new_Tacotron2.Inference(
 ```
 
 # Result
-* Currently training...
-* The following results are based on the checkpoint of 31000 steps of 48 batchs (69 epochs).
-* The voices based on the FastVox are not distinguisible yet.
+* Currently re-training...
+* The following results are based on the checkpoint of 84000 steps of 48 batchs (191 epochs).
+* The voices based on the FastVox are not distinguisible well.
+* I will re-train with bigger GST token(from 10 to 128)
 * Vertical line is stop detection.
 
 ##### 
 * Mel for GST: FastVox AWB A0001
 * Sentence: The grass is always greener on the other side of the fence.
 
-![IDX_0](./Figures/20200219.203127.IDX_0.PNG)
+[Wav_IDX_0](./Example_Results/Wav/20200221.202925.IDX_0.WAV)
+![Figure_IDX_0](./Example_Results/Figures/20200221.202925.IDX_0.PNG)
 ##### 
 * Mel for GST: FastVox BDL A0002
 * Sentence: Strike while the iron is hot.
 
-![IDX_1](./Figures/20200219.203127.IDX_1.PNG)
+[Wav_IDX_1](./Example_Results/Wav/20200221.202925.IDX_1.WAV)
+![Figure_IDX_1](./Example_Results/Figures/20200221.202925.IDX_1.PNG)
 ##### 
 * Mel for GST: FastVox CLB A0003
 * Sentence: A creative artist works on his next composition because he was not satisfied with his previous one.
 
-![IDX_2](./Figures/20200219.203127.IDX_2.PNG)
+[Wav_IDX_2](./Example_Results/Wav/20200221.202925.IDX_2.WAV)
+![Figure_IDX_2](./Example_Results/Figures/20200221.202925.IDX_2.PNG)
 ##### 
 * Mel for GST: FastVox JMK A0004
 * Sentence: You cannot make an omelet without breaking a few eggs.
 
-![IDX_3](./Figures/20200219.203127.IDX_3.PNG)
+[Wav_IDX_3](./Example_Results/Wav/20200221.202925.IDX_3.WAV)
+![Figure_IDX_3](./Example_Results/Figures/20200221.202925.IDX_3.PNG)
 ##### 
 * Mel for GST: FastVox KSP A0005.wav
 * Sentence: Death is like a fisherman who catches fish in his net and leaves them for a while in the water. The fish is still swimming but the net is around him, and the fisherman will draw him up.
 
-![IDX_4](./Figures/20200219.203127.IDX_4.PNG)
+[Wav_IDX_4](./Example_Results/Wav/20200221.202925.IDX_4.WAV)
+![Figure_IDX_4](./Example_Results/Figures/20200221.202925.IDX_4.PNG)
 ##### 
 * Mel for GST: FastVox.RMS A0006
 * Sentence: A man who marries a woman to educate her falls a victim to the same fallacy as the woman who marries a man to reform him.
 
-![IDX_5](./Figures/20200219.203127.IDX_5.PNG)
+[Wav_IDX_5](./Example_Results/Wav/20200221.202925.IDX_5.WAV)
+![Figure_IDX_5](./Example_Results/Figures/20200221.202925.IDX_5.PNG)
 ##### 
 * Mel for GST: FastVox.SLT A0007
 * Sentence: Birds of a feather flock together.
 
-![IDX_6](./Figures/20200219.203127.IDX_6.PNG)
+[Wav_IDX_6](./Example_Results/Wav/20200221.202925.IDX_6.WAV)
+![Figure_IDX_6](./Example_Results/Figures/20200221.202925.IDX_6.PNG)
 ##### 
 * Mel for GST: LJspeech LJ050-0278
 * Sentence: Too many cooks in the kitchen spoil the broth.
 
-![IDX_7](./Figures/20200219.203127.IDX_7.PNG)
+[Wav_IDX_7](./Example_Results/Wav/20200221.202925.IDX_7.WAV)
+![Figure_IDX_7](./Example_Results/Figures/20200221.202925.IDX_7.PNG)
 
 # Trained checkpoint
-Currently training...
+
+[Checkpoint here](https://drive.google.com/open?id=1zhpJt5VM1jpG4NapsDUKGT_BAr_ZEsfM)
+
+* This is the checkpoint of 84000 steps of 48 batchs (191 epochs).
+* I am re-training with different parameters.
+* There is the hyper-parameter about this checkpoint in the zip file.
 
 # Future works
 0. Training progress

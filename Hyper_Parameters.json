@@ -26,7 +26,7 @@
             }
         },
         "Style_Token": {
-            "Size": 10,
+            "Size": 128,
             "Embedding": {
                 "Size": 256
             },
@@ -36,8 +36,6 @@
             }
         }
     },
-
-    "Taco_Version": 2,
 
     "Tacotron1": {
         "Encoder": {
@@ -131,7 +129,7 @@
     },
 
     "Inference_Step_Reduction": 3,
-    "Max_Step": 1500,
+    "Max_Step": 1000,
 
     "Vocoder_Taco1": {
         "CBHG": {
@@ -162,7 +160,7 @@
     "Train": {
         "Pattern_Path": "C:/Pattern/GST.Pattern.LJFV",
         "Metadata_File": "METADATA.PICKLE",
-        "Batch_Size": 48,
+        "Batch_Size": 40,
         "Pattern_Sorting": true,
         "Min_Wav_Length": 500,
         "Max_Wav_Length": 10000,
@@ -172,7 +170,7 @@
         "ADAM": {
             "Beta1": 0.9,
             "Beta2": 0.999,
-            "Epsilon": 1e-4
+            "Epsilon": 1e-7
         },
         "Use_L2_Loss": true,
         "Inference_Timing": 1000,
@@ -182,9 +180,11 @@
         "Initial_Inference": true
     },
 
-    "Use_Mixed_Precision": true,
-    "Inference_Path": "D:/GST.Results/Taco2.GST.LJFV.SMA.R3/Inference",
-    "Checkpoint_Path": "D:/GST.Results/Taco2.GST.LJFV.SMA.R3/Checkpoint",
-    "Device": "0"
-    
+        
+    "Taco_Version": 2,
+    "Use_Mixed_Precision": false,
+    "Inference_Cut": false,
+    "Inference_Path": "D:/GST.Results/Taco2.GST128.LJFV.SMA.R3/Inference",
+    "Checkpoint_Path": "D:/GST.Results/Taco2.GST128.LJFV.SMA.R3/Checkpoint",
+    "Device": "0"    
 }

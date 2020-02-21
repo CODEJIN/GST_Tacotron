@@ -319,7 +319,13 @@ class GST_Tacotron:
             spect = spect.astype(np.float32)
             alignment = alignment.astype(np.float32)
 
-            slice_Index = np.argmax(stop < 0) if any(stop < 0) else stop.shape[0] # I don't use this now. Currently, I want to check all steps.
+            slice_Index = np.argmax(stop < 0) if any(stop < 0) else stop.shape[0] # Check stop tokens            
+            if hp_Dict['Inference_Cut']:
+                nonzero_Slice_Index = np.maximum(1, slice_Index)
+                mel = mel[:nonzero_Slice_Index * hp_Dict['Inference_Step_Reduction']]
+                stop = stop[:nonzero_Slice_Index]
+                spect = spect[:nonzero_Slice_Index * hp_Dict['Inference_Step_Reduction']]
+                alignment = alignment[:nonzero_Slice_Index]
 
             new_Figure = plt.figure(figsize=(24, 6 * 5), dpi=100)
             plt.subplot2grid((5, 1), (0, 0))
