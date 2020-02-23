@@ -10,7 +10,7 @@ from datetime import datetime
 
 from ProgressBar import progress
 from Feeder import Feeder
-from Modules.GST import GST_Concated_Encoder
+from Modules.GST import Style_Token_Layer, GST_Concated_Encoder
 from Audio import inv_spectrogram
 from scipy.io import wavfile
 
@@ -78,16 +78,22 @@ class GST_Tacotron:
         layer_Dict['Decoder'] = Modules.Decoder()
         layer_Dict['Vocoder_Taco1'] = Modules.Vocoder_Taco1()
         if hp_Dict['GST']['Use']:
+            layer_Dict['Style_Token_Layer'] = Style_Token_Layer()
             layer_Dict['GST_Concated_Encoder'] = GST_Concated_Encoder()
+
         
         tensor_Dict['Train', 'Encoder'] = layer_Dict['Encoder'](
             input_Dict['Token'],
             training= True
             )
         if hp_Dict['GST']['Use']:            
+            tensor_Dict['Train', 'GST'] = layer_Dict['Style_Token_Layer']([                
+                input_Dict['GST_Mel'],
+                input_Dict['Mel_Length']
+                ])
             tensor_Dict['Train', 'Encoder'] = layer_Dict['GST_Concated_Encoder']([
                 tensor_Dict['Train', 'Encoder'],
-                input_Dict['GST_Mel']
+                tensor_Dict['Train', 'GST']
                 ])
 
         tensor_Dict['Train', 'Export_Pre_Mel'], tensor_Dict['Train', 'Export_Mel'], tensor_Dict['Train', 'Stop_Token'], _ = layer_Dict['Decoder'](
@@ -104,9 +110,13 @@ class GST_Tacotron:
             training= False
             )        
         if hp_Dict['GST']['Use']:
+            tensor_Dict['Inference', 'GST'] = layer_Dict['Style_Token_Layer']([                
+                input_Dict['GST_Mel'],
+                input_Dict['Mel_Length']
+                ])
             tensor_Dict['Inference', 'Encoder'] = layer_Dict['GST_Concated_Encoder']([
                 tensor_Dict['Inference', 'Encoder'],
-                input_Dict['GST_Mel']
+                tensor_Dict['Inference', 'GST']
                 ])
 
         _, tensor_Dict['Inference', 'Export_Mel'], tensor_Dict['Inference', 'Stop_Token'], tensor_Dict['Inference', 'Alignment'] = layer_Dict['Decoder'](
@@ -120,7 +130,11 @@ class GST_Tacotron:
 
         self.model_Dict = {}
         self.model_Dict['Train'] = tf.keras.Model(
-            inputs=[input_Dict['Mel'], input_Dict['Token'], input_Dict['Spectrogram']] + ([input_Dict['GST_Mel']] if hp_Dict['GST']['Use'] else []),
+            inputs=[
+                input_Dict['Mel'],
+                input_Dict['Token'],
+                input_Dict['Spectrogram']
+                ] + ([input_Dict['GST_Mel'], input_Dict['Mel_Length']] if hp_Dict['GST']['Use'] else []),
             outputs= [
                 tensor_Dict['Train', 'Export_Pre_Mel'],
                 tensor_Dict['Train', 'Export_Mel'],
@@ -129,7 +143,10 @@ class GST_Tacotron:
                 ]
             )
         self.model_Dict['Inference'] = tf.keras.Model(
-            inputs=[input_Dict['Mel'], input_Dict['Token']] + ([input_Dict['GST_Mel']] if hp_Dict['GST']['Use'] else []),
+            inputs=[
+                input_Dict['Mel'],
+                input_Dict['Token']
+                ] + ([input_Dict['GST_Mel'], input_Dict['Mel_Length']] if hp_Dict['GST']['Use'] else []),
             outputs= [
                 tensor_Dict['Inference', 'Export_Mel'],
                 tensor_Dict['Inference', 'Stop_Token'],
@@ -140,6 +157,16 @@ class GST_Tacotron:
 
         self.model_Dict['Train'].summary()
         self.model_Dict['Inference'].summary()
+                
+        if hp_Dict['GST']['Use']:
+            self.model_Dict['GST'] = tf.keras.Model(
+                inputs= [
+                    input_Dict['GST_Mel'],
+                    input_Dict['Mel_Length']
+                    ],
+                outputs= tensor_Dict['Inference', 'GST']
+                )
+            self.model_Dict['GST'].summary()
 
         learning_Rate = Modules.ExponentialDecay(
             initial_learning_rate= hp_Dict['Train']['Initial_Learning_Rate'],
@@ -171,7 +198,7 @@ class GST_Tacotron:
     def Train_Step(self, mels, mel_lengths, tokens, token_lengths, spectrograms, spectrogram_lengths):
         with tf.GradientTape() as tape:
             pre_Mel_Logits, mel_Logits, stop_Logits, spectrogram_Logits = self.model_Dict['Train'](
-                inputs= [mels, tokens, spectrograms] + ([mels] if hp_Dict['GST']['Use'] else []),
+                inputs= [mels, tokens, spectrograms] + ([mels, mel_lengths] if hp_Dict['GST']['Use'] else []),
                 training= True
                 )
 
@@ -214,13 +241,23 @@ class GST_Tacotron:
         return loss
 
     # @tf.function
-    def Inference_Step(self, tokens, token_lengths, initial_mels, mels_for_gst= None):
+    def Inference_Step(self, tokens, token_lengths, initial_mels, mels_for_gst= None, mel_lengths_for_gst= None):
         mel_Logits, stop_Logits, spectrogram_Logits, alignments = self.model_Dict['Inference'](
-            inputs= [initial_mels, tokens] + ([mels_for_gst] if hp_Dict['GST']['Use'] else []),
+            inputs= [initial_mels, tokens] + ([mels_for_gst, mel_lengths_for_gst] if hp_Dict['GST']['Use'] else []),
             training= False
             )
 
         return mel_Logits, stop_Logits, spectrogram_Logits, alignments
+
+    def Inference_GST_Step(self, mels_for_gst, mel_lengths_for_gst):
+        if not hp_Dict['GST']['Use']:
+            raise NotImplementedError('GST is not used')
+        gst = self.model_Dict['GST'](
+            inputs= [mels_for_gst, mel_lengths_for_gst],
+            training= False
+            )
+
+        return gst        
 
     def Restore(self):
         checkpoint_File_Path = os.path.join(hp_Dict['Checkpoint_Path'], 'CHECKPOINT.H5').replace('\\', '/')
@@ -257,6 +294,11 @@ class GST_Tacotron:
                 wav_List_for_GST = None
 
             self.Inference(sentence_List, wav_List_for_GST)
+
+            # if hp_Dict['GST']['Use']:
+            #     from Get_Path import Get_Path
+            #     wav_List, tag_List = Get_Path(50)
+            #     self.Inference_GST(wav_List, tag_List)
 
         self.optimizer.iterations.assign(initial_Step)
 
@@ -371,6 +413,40 @@ class GST_Tacotron:
                 rate= hp_Dict['Sound']['Sample_Rate']
                 )
 
+    def Inference_GST(self, wav_List, tag_List, label= None):
+        if not hp_Dict['GST']['Use']:
+            raise NotImplementedError('GST is not used')            
+
+        print('GST Inference running...')
+        gsts = self.Inference_GST_Step(
+            **self.feeder.Get_Inference_GST_Pattern(wav_List)
+            )
+
+        export_Inference_Thread = Thread(
+            target= self.Export_GST,
+            args= [
+                wav_List,
+                tag_List,
+                gsts,
+                label or datetime.now().strftime("%Y%m%d.%H%M%S")
+                ]
+            )
+        export_Inference_Thread.daemon = True
+        export_Inference_Thread.start()
+
+    def Export_GST(self, wav_List, tag_List, gst_List, label):
+        os.makedirs(os.path.join(hp_Dict['Inference_Path'], 'GST').replace("\\", "/"), exist_ok= True)        
+
+        title_Column_List = ['Wav', 'Tag'] + ['Unit_{}'.format(x) for x in range(gst_List[0].shape[0])]
+        export_List = ['\t'.join(title_Column_List)]
+        for wav_Path, tag, gst in zip(wav_List, tag_List, gst_List):
+            new_Line_List = [wav_Path, tag] + [x for x in gst]
+            new_Line_List = ['{}'.format(x) for x in new_Line_List]
+            export_List.append('\t'.join(new_Line_List))
+
+        with open(os.path.join(hp_Dict['Inference_Path'], 'GST', '{}.GST.TXT'.format(label)).replace("\\", "/"), 'w') as f:
+            f.write('\n'.join(export_List))
+
 if __name__ == '__main__':
     argParser = argparse.ArgumentParser()
     argParser.add_argument("-s", "--start_step", required=False)
@@ -378,3 +454,8 @@ if __name__ == '__main__':
     new_Model = GST_Tacotron(is_Training= True)
     new_Model.Restore()
     new_Model.Train(initial_Step= int(vars(argParser.parse_args())['start_step'] or 0))
+    
+
+    # from Get_Path import Get_Path
+    # wav_List, tag_List = Get_Path(3)
+    # new_Model.Inference_GST(wav_List, tag_List)

@@ -160,11 +160,8 @@ from Model import GST_Tacotron
 new_GST_Tacotron = GST_Tacotron(is_Training= False)
 new_GST_Tacotron.Restore()
 ```
-3. Set the speaker's Wav path list and text list like the 
+3. Set the speaker's Wav path list and text list like the following example:
 
-__※The length of wav path must be 1 or same to text list.__
-
-following example:
 ```
 text_List = [
     'The grass is always greener on the other side of the fence.'
@@ -179,15 +176,45 @@ path_List = [
     './Wav_for_Inference/LJ.LJ050-0278.wav'
     ]
 ```
+__※The length of wav path must be 1 or same to text list.__
+
 
 4. Run following command:
 ```
-new_Tacotron2.Inference(
+new_GST_Tacotron.Inference(
     path_List = path_List,
     text_List = text_List,
     file_Prefix = 'Result'
     )
 ```
+
+# GST embedding inference
+1. Do until 2 of [Inference](#Inference)
+
+2. Set the Wav path list and tag list like the following example:
+```
+wav_List = [
+    './Wav_for_Inference/FV.AWB.arctic_a0001.wav'
+    './Wav_for_Inference/FV.JMK.arctic_a0004.wav'
+    './Wav_for_Inference/FV.SLT.arctic_a0007.wav'
+    './Wav_for_Inference/LJ.LJ050-0278.wav'
+    ]
+tag_List = [
+    'AWB'
+    'JMK'
+    'SLT'
+    'LJ'
+    ]
+```
+__※The length of two lists must be same.__
+
+3. Run following command:
+```
+new_GST_Tacotron.Inference_GST(wav_List, tag_List)
+```
+
+4. The result is saved as a text file in inference directory. You can get the t-SNE analysis graph by using [R script](./R_Script/TSNE.R)
+
 
 # Result
 * Currently re-training...
@@ -256,13 +283,9 @@ new_Tacotron2.Inference(
 # Future works
 0. Training progress
 
-1. Global token analysis
-    * All trained pattern's global token pattern clustering.
-    * Comparing the result by control the global token.
-
-2. Vocoder attaching. (I am focusing 'LPCNet'.)
+1. Vocoder attaching. (I am focusing 'LPCNet'.)
     * Valin, J. M., & Skoglund, J. (2019, May). LPCNet: Improving neural speech synthesis through linear prediction. In ICASSP 2019-2019 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP) (pp. 5891-5895). IEEE.
 
-3. Tacotron 1 module update
+2. Tacotron 1 module update
     * Original paper used the tacotron 1, not tacotron 2.
     * I hope add tacotron 1 for performance comparison and more.

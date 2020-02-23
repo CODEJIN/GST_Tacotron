@@ -201,10 +201,12 @@ class Feeder:
                 print('The length of wav_List_for_GST must be 1 or same to the length of sentence_List and wav_List_for_GST must be same.')
                 return
 
-            if len(wav_List_for_GST) == 1:                
-                new_Mel_Pattern_for_GST = np.stack([Mel_Generate(wav_List_for_GST[0], top_db= 15, range_Ignore= True)] * pattern_Count, axis= 0)
+            if len(wav_List_for_GST) == 1:
+                mel = Mel_Generate(wav_List_for_GST[0], top_db= 60, range_Ignore= True)
+                new_Mel_Pattern_for_GST = np.stack([mel] * pattern_Count, axis= 0)
+                new_Mel_Length_for_GST = np.array([mel.shape[0]] * pattern_Count, dtype= np.int32)
             else:
-                mel_List = [Mel_Generate(path, top_db= 15, range_Ignore= True) for path in wav_List_for_GST]
+                mel_List = [Mel_Generate(path, top_db= 15, range_Ignore= True) for path in wav_List_for_GST]                
                 max_Mel_Length = max([mel.shape[0] for mel in mel_List])
                 new_Mel_Pattern_for_GST = np.zeros(
                     shape=(pattern_Count, max_Mel_Length, hp_Dict['Sound']['Mel_Dim']),
@@ -212,14 +214,43 @@ class Feeder:
                     )
                 for pattern_Index, mel in enumerate(mel_List):
                     new_Mel_Pattern_for_GST[pattern_Index, :mel.shape[0]] = mel
+
+                new_Mel_Length_for_GST = np.array([mel.shape[0] for mel in mel_List], dtype=np.int32)
                 
             # GST does not need an initial frame. But for the same pattern input as the training, I add an initial frame
             pattern_Dict['mels_for_gst'] = np.hstack([
                 np.zeros(shape=(pattern_Count, 1, hp_Dict['Sound']['Mel_Dim']), dtype= np.float32),
                 new_Mel_Pattern_for_GST
                 ])
+            pattern_Dict['mel_lengths_for_gst'] = new_Mel_Length_for_GST
 
         return pattern_Dict
+
+    def Get_Inference_GST_Pattern(self, wav_List):
+        pattern_Count = len(wav_List)
+        
+        mel_List = [Mel_Generate(path, top_db= 60, range_Ignore= True) for path in wav_List]                
+        max_Mel_Length = max([mel.shape[0] for mel in mel_List])
+        new_Mel_Pattern = np.zeros(
+            shape=(pattern_Count, max_Mel_Length, hp_Dict['Sound']['Mel_Dim']),
+            dtype= np.float32
+            )
+        for pattern_Index, mel in enumerate(mel_List):
+            new_Mel_Pattern[pattern_Index, :mel.shape[0]] = mel
+
+        new_Mel_Length = np.array([mel.shape[0] for mel in mel_List], dtype=np.int32)
+            
+        # GST does not need an initial frame. But for the same pattern input as the training, I add an initial frame
+        pattern_Dict = {
+            'mels_for_gst': np.hstack([
+                np.zeros(shape=(pattern_Count, 1, hp_Dict['Sound']['Mel_Dim']), dtype= np.float32),
+                new_Mel_Pattern
+                ]),
+            'mel_lengths_for_gst': new_Mel_Length
+            }
+
+        return pattern_Dict
+
 
 if __name__ == "__main__":
     new_Feeder = Feeder(is_Training= True)

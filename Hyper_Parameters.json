@@ -26,7 +26,7 @@
             }
         },
         "Style_Token": {
-            "Size": 128,
+            "Size": 16,
             "Embedding": {
                 "Size": 256
             },
@@ -184,7 +184,7 @@
     "Taco_Version": 2,
     "Use_Mixed_Precision": false,
     "Inference_Cut": false,
-    "Inference_Path": "D:/GST.Results/Taco2.GST128.LJFV.SMA.R3/Inference",
-    "Checkpoint_Path": "D:/GST.Results/Taco2.GST128.LJFV.SMA.R3/Checkpoint",
+    "Inference_Path": "D:/GST.Results/Taco2.GST16.LJFV.SMA.R3/Inference",
+    "Checkpoint_Path": "D:/GST.Results/Taco2.GST16.LJFV.SMA.R3/Checkpoint",
     "Device": "0"    
 }
