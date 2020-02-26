@@ -278,8 +278,7 @@ new_GST_Tacotron.Inference_GST(wav_List, tag_List)
 
 [Checkpoint here](https://drive.google.com/open?id=1zhpJt5VM1jpG4NapsDUKGT_BAr_ZEsfM)
 
-* This is the checkpoint of 84000 steps of 48 batchs (191 epochs).
-* I am re-training with different parameters.
+* This is the checkpoint of 36000 steps of 40 batchs (69.09 epochs).
 * There is the hyper-parameter about this checkpoint in the zip file.
 
 
