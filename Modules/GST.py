@@ -63,7 +63,7 @@ class Reference_Encoder(tf.keras.Model):
 
         new_Tensor = tf.gather_nd(
             params= new_Tensor,
-            indices= tf.stack([tf.range(batch_Size), self.layer_Dict['Compress_Length'](mel_lengths)], axis= 1)
+            indices= tf.stack([tf.range(batch_Size), self.layer_Dict['Compress_Length'](mel_lengths) - 1], axis= 1)
             )
 
         return self.layer_Dict['Dense'](new_Tensor)

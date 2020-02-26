@@ -183,7 +183,7 @@
         
     "Taco_Version": 2,
     "Use_Mixed_Precision": false,
-    "Inference_Cut": false,
+    "Inference_Cut": true,
     "Inference_Path": "D:/GST.Results/Taco2.GST16.LJFV.SMA.R3/Inference",
     "Checkpoint_Path": "D:/GST.Results/Taco2.GST16.LJFV.SMA.R3/Checkpoint",
     "Device": "0"    

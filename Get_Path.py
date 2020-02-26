@@ -3,14 +3,14 @@ from random import sample
 
 def Get_Path(sample_count= 50):
     path_List = [
-        ('LJ', 'D:/Pattern/ENG/LJSpeech/wavs'),
-        ('AWB', 'D:/Pattern/ENG/FastVox/cmu_us_awb_arctic/wav'),
-        ('BDL', 'D:/Pattern/ENG/FastVox/cmu_us_bdl_arctic/wav'),
-        ('CLB', 'D:/Pattern/ENG/FastVox/cmu_us_clb_arctic/wav'),
-        ('JMK', 'D:/Pattern/ENG/FastVox/cmu_us_jmk_arctic/wav'),
-        ('KSP', 'D:/Pattern/ENG/FastVox/cmu_us_ksp_arctic/wav'),
-        ('RMS', 'D:/Pattern/ENG/FastVox/cmu_us_rms_arctic/wav'),
-        ('SLT', 'D:/Pattern/ENG/FastVox/cmu_us_slt_arctic/wav')
+        ('LJ(F)', 'D:/Pattern/ENG/LJSpeech/wavs'),
+        ('CLB(F)', 'D:/Pattern/ENG/FastVox/cmu_us_clb_arctic/wav'),
+        ('SLT(F)', 'D:/Pattern/ENG/FastVox/cmu_us_slt_arctic/wav'),
+        ('AWB(M)', 'D:/Pattern/ENG/FastVox/cmu_us_awb_arctic/wav'),
+        ('BDL(M)', 'D:/Pattern/ENG/FastVox/cmu_us_bdl_arctic/wav'),        
+        ('JMK(M)', 'D:/Pattern/ENG/FastVox/cmu_us_jmk_arctic/wav'),
+        ('KSP(M)', 'D:/Pattern/ENG/FastVox/cmu_us_ksp_arctic/wav'),
+        ('RMS(M)', 'D:/Pattern/ENG/FastVox/cmu_us_rms_arctic/wav'),        
         ]
     
     wav_List = []

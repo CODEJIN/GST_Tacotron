@@ -217,60 +217,62 @@ new_GST_Tacotron.Inference_GST(wav_List, tag_List)
 
 
 # Result
-* Currently re-training...
-* The following results are based on the checkpoint of 84000 steps of 48 batchs (191 epochs).
-* The voices based on the FastVox are not distinguisible well.
-* I will re-train with bigger GST token(from 10 to 128)
-* Vertical line is stop detection.
+* The following results are based on the checkpoint of 36000 steps of 40 batchs (69.09 epochs).
+* In figures, vertical line is stop detection.
+* All speakers are distinguishable.
+* Voice quality is not perfect, but I concluded that the reason is because the insufficient learning steps and the use of Griffin-Lim, not vocoder.
+* I stopped training this model. I will focus to generate and attach a vocoder.
 
-##### 
-* Mel for GST: FastVox AWB A0001
+## Mel for GST: FastVox AWB A0001
 * Sentence: The grass is always greener on the other side of the fence.
 
-[Wav_IDX_0](./Example_Results/Wav/20200221.202925.IDX_0.WAV)
-![Figure_IDX_0](./Example_Results/Figures/20200221.202925.IDX_0.PNG)
-##### 
-* Mel for GST: FastVox BDL A0002
+[Wav_IDX_0](./Example_Results/Wav/20200227.010826.IDX_0.WAV)
+![Figure_IDX_0](./Example_Results/Figures/20200227.010826.IDX_0.PNG)
+
+## Mel for GST: FastVox BDL A0002
 * Sentence: Strike while the iron is hot.
 
-[Wav_IDX_1](./Example_Results/Wav/20200221.202925.IDX_1.WAV)
-![Figure_IDX_1](./Example_Results/Figures/20200221.202925.IDX_1.PNG)
-##### 
-* Mel for GST: FastVox CLB A0003
+[Wav_IDX_1](./Example_Results/Wav/20200227.010826.IDX_1.WAV)
+![Figure_IDX_1](./Example_Results/Figures/20200227.010826.IDX_1.PNG)
+
+## Mel for GST: FastVox CLB A0003
 * Sentence: A creative artist works on his next composition because he was not satisfied with his previous one.
 
-[Wav_IDX_2](./Example_Results/Wav/20200221.202925.IDX_2.WAV)
-![Figure_IDX_2](./Example_Results/Figures/20200221.202925.IDX_2.PNG)
-##### 
-* Mel for GST: FastVox JMK A0004
+[Wav_IDX_2](./Example_Results/Wav/20200227.010826.IDX_2.WAV)
+![Figure_IDX_2](./Example_Results/Figures/20200227.010826.IDX_2.PNG)
+
+## Mel for GST: FastVox JMK A0004
 * Sentence: You cannot make an omelet without breaking a few eggs.
 
-[Wav_IDX_3](./Example_Results/Wav/20200221.202925.IDX_3.WAV)
-![Figure_IDX_3](./Example_Results/Figures/20200221.202925.IDX_3.PNG)
-##### 
-* Mel for GST: FastVox KSP A0005.wav
+[Wav_IDX_3](./Example_Results/Wav/20200227.010826.IDX_3.WAV)
+![Figure_IDX_3](./Example_Results/Figures/20200227.010826.IDX_3.PNG)
+
+## Mel for GST: FastVox KSP A0005.wav
 * Sentence: Death is like a fisherman who catches fish in his net and leaves them for a while in the water. The fish is still swimming but the net is around him, and the fisherman will draw him up.
 
-[Wav_IDX_4](./Example_Results/Wav/20200221.202925.IDX_4.WAV)
-![Figure_IDX_4](./Example_Results/Figures/20200221.202925.IDX_4.PNG)
-##### 
-* Mel for GST: FastVox.RMS A0006
+[Wav_IDX_4](./Example_Results/Wav/20200227.010826.IDX_4.WAV)
+![Figure_IDX_4](./Example_Results/Figures/20200227.010826.IDX_4.PNG)
+
+## Mel for GST: FastVox.RMS A0006
 * Sentence: A man who marries a woman to educate her falls a victim to the same fallacy as the woman who marries a man to reform him.
 
-[Wav_IDX_5](./Example_Results/Wav/20200221.202925.IDX_5.WAV)
-![Figure_IDX_5](./Example_Results/Figures/20200221.202925.IDX_5.PNG)
-##### 
-* Mel for GST: FastVox.SLT A0007
+[Wav_IDX_5](./Example_Results/Wav/20200227.010826.IDX_5.WAV)
+![Figure_IDX_5](./Example_Results/Figures/20200227.010826.IDX_5.PNG)
+
+## Mel for GST: FastVox.SLT A0007
 * Sentence: Birds of a feather flock together.
 
-[Wav_IDX_6](./Example_Results/Wav/20200221.202925.IDX_6.WAV)
-![Figure_IDX_6](./Example_Results/Figures/20200221.202925.IDX_6.PNG)
-##### 
-* Mel for GST: LJspeech LJ050-0278
+[Wav_IDX_6](./Example_Results/Wav/20200227.010826.IDX_6.WAV)
+![Figure_IDX_6](./Example_Results/Figures/20200227.010826.IDX_6.PNG)
+
+## Mel for GST: LJspeech LJ050-0278
 * Sentence: Too many cooks in the kitchen spoil the broth.
 
-[Wav_IDX_7](./Example_Results/Wav/20200221.202925.IDX_7.WAV)
-![Figure_IDX_7](./Example_Results/Figures/20200221.202925.IDX_7.PNG)
+[Wav_IDX_7](./Example_Results/Wav/20200227.010826.IDX_7.WAV)
+![Figure_IDX_7](./Example_Results/Figures/20200227.010826.IDX_7.PNG)
+
+## GST embedding t-SNE
+![GST_Embedding](./Example_Results/GST/20200227.010216.GST.PNG)
 
 # Trained checkpoint
 
@@ -280,12 +282,17 @@ new_GST_Tacotron.Inference_GST(wav_List, tag_List)
 * I am re-training with different parameters.
 * There is the hyper-parameter about this checkpoint in the zip file.
 
-# Future works
-0. Training progress
 
-1. Vocoder attaching. (I am focusing 'LPCNet'.)
-    * Valin, J. M., & Skoglund, J. (2019, May). LPCNet: Improving neural speech synthesis through linear prediction. In ICASSP 2019-2019 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP) (pp. 5891-5895). IEEE.
+# Future works
+1. Vocoder attaching. (I am focusing 'WaveGlow'.)
+```
+Prenger, R., Valle, R., & Catanzaro, B. (2019, May). Waveglow: A flow-based generative network for speech synthesis. In ICASSP 2019-2019 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP) (pp. 3617-3621). IEEE.
+```
+
+2. GST token control test
+    * The GST embedding of current result is based on the mel.
+    * The GST token control function is not attached yet.
 
 2. Tacotron 1 module update
     * Original paper used the tacotron 1, not tacotron 2.
-    * I hope add tacotron 1 for performance comparison and more.
+    * I hope to add tacotron 1 for performance comparison and more.

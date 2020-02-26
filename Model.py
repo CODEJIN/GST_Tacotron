@@ -259,8 +259,14 @@ class GST_Tacotron:
 
         return gst        
 
-    def Restore(self):
-        checkpoint_File_Path = os.path.join(hp_Dict['Checkpoint_Path'], 'CHECKPOINT.H5').replace('\\', '/')
+    def Restore(self, load_Step= None):
+        if load_Step is None:
+            checkpoint_File_Path = tf.train.latest_checkpoint(hp_Dict['Checkpoint_Path'])
+        else:
+            checkpoint_File_Path = os.path.join(
+                hp_Dict['Checkpoint_Path'],
+                'S_{}.CHECKPOINT.H5'.format(load_Step or self.optimizer.iterations.numpy())
+                ).replace('\\', '/')
         
         if not os.path.exists('{}.index'.format(checkpoint_File_Path)):
             print('There is no checkpoint.')
@@ -277,7 +283,10 @@ class GST_Tacotron:
 
         def Save_Checkpoint():
             os.makedirs(os.path.join(hp_Dict['Checkpoint_Path']).replace("\\", "/"), exist_ok= True)
-            self.model_Dict['Train'].save_weights(os.path.join(hp_Dict['Checkpoint_Path'], 'CHECKPOINT.H5').replace('\\', '/'))
+            self.model_Dict['Train'].save_weights(os.path.join(
+                hp_Dict['Checkpoint_Path'],
+                'S_{}.CHECKPOINT.H5'.format(self.optimizer.iterations.numpy())
+                ).replace('\\', '/'))
 
         def Run_Inference():
             sentence_List = []
@@ -297,7 +306,7 @@ class GST_Tacotron:
 
             # if hp_Dict['GST']['Use']:
             #     from Get_Path import Get_Path
-            #     wav_List, tag_List = Get_Path(50)
+            #     wav_List, tag_List = Get_Path(100)
             #     self.Inference_GST(wav_List, tag_List)
 
         self.optimizer.iterations.assign(initial_Step)
@@ -362,13 +371,7 @@ class GST_Tacotron:
             alignment = alignment.astype(np.float32)
 
             slice_Index = np.argmax(stop < 0) if any(stop < 0) else stop.shape[0] # Check stop tokens            
-            if hp_Dict['Inference_Cut']:
-                nonzero_Slice_Index = np.maximum(1, slice_Index)
-                mel = mel[:nonzero_Slice_Index * hp_Dict['Inference_Step_Reduction']]
-                stop = stop[:nonzero_Slice_Index]
-                spect = spect[:nonzero_Slice_Index * hp_Dict['Inference_Step_Reduction']]
-                alignment = alignment[:nonzero_Slice_Index]
-
+            
             new_Figure = plt.figure(figsize=(24, 6 * 5), dpi=100)
             plt.subplot2grid((5, 1), (0, 0))
             plt.imshow(np.transpose(mel), aspect='auto', origin='lower')
@@ -400,7 +403,7 @@ class GST_Tacotron:
             plt.close(new_Figure)
 
             new_Sig = inv_spectrogram(
-                spectrogram= np.transpose(spect),
+                spectrogram= np.transpose(spect[:np.maximum(1, slice_Index) * hp_Dict['Inference_Step_Reduction']]),
                 num_freq= hp_Dict['Sound']['Spectrogram_Dim'],        
                 frame_shift_ms= hp_Dict['Sound']['Frame_Shift'],
                 frame_length_ms= hp_Dict['Sound']['Frame_Length'],
@@ -454,8 +457,3 @@ if __name__ == '__main__':
     new_Model = GST_Tacotron(is_Training= True)
     new_Model.Restore()
     new_Model.Train(initial_Step= int(vars(argParser.parse_args())['start_step'] or 0))
-    
-
-    # from Get_Path import Get_Path
-    # wav_List, tag_List = Get_Path(3)
-    # new_Model.Inference_GST(wav_List, tag_List)

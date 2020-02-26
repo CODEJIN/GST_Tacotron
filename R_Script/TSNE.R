@@ -13,6 +13,10 @@ for(file in list.files(base_Dir))
   {
     next
   }
+  else if (file.exists(sprintf('%s%s', base_Dir, str_replace(file, '.TXT', '.PNG'))))
+  {
+    next
+  }
   
   gst.Data <- read_delim(
     sprintf('%s%s', base_Dir, file),
