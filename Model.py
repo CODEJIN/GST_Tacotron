@@ -323,7 +323,7 @@ class GST_Tacotron:
             display_List = [
                 'Time: {:0.3f}'.format(time.time() - start_Time),
                 'Step: {}'.format(self.optimizer.iterations.numpy()),
-                'LR: {:0.8f}'.format(self.optimizer.lr(self.optimizer.iterations.numpy() - 1)),
+                'LR: {:0.5f}'.format(self.optimizer.lr(self.optimizer.iterations.numpy() - 1)),
                 'Loss: {:0.5f}'.format(loss),
                 ]
             print('\t\t'.join(display_List))
@@ -412,7 +412,7 @@ class GST_Tacotron:
                 )
             wavfile.write(
                 filename= os.path.join(hp_Dict['Inference_Path'], 'Wav', '{}.IDX_{}.WAV'.format(label, index)).replace("\\", "/"),
-                data= new_Sig,
+                data= (new_Sig * 32768).astype(np.int16),
                 rate= hp_Dict['Sound']['Sample_Rate']
                 )
 
