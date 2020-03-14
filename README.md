@@ -55,7 +55,7 @@ Before proceeding, please set the pattern, inference, and checkpoint paths in 'H
     * Currently, this hyper parameter is ignored because tacotron 1 does not implemented.
 
 * Tacotron2
-    * Setting the parameters of tacotron 1.
+    * Setting the parameters of tacotron 2.
     * If 'Taco_Version' is 1, the parameters of this part will be ignored.
     * I recommend that all 'Zoneout' parameters are set 0.0 because the CuDNN does not support the recurrent_dropout yet.
     * See the following reference for details.
