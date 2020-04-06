@@ -163,17 +163,17 @@ new_GST_Tacotron.Restore()
 3. Set the speaker's Wav path list and text list like the following example:
 
 ```
-text_List = [
-    'The grass is always greener on the other side of the fence.'
-    'Strike while the iron is hot.'
-    'A creative artist works on his next composition because he was not satisfied with his previous one.'
-    'You cannot make an omelet without breaking a few eggs.'    
+sentence_List = [
+    'The grass is always greener on the other side of the fence.',
+    'Strike while the iron is hot.',
+    'A creative artist works on his next composition because he was not satisfied with his previous one.',
+    'You cannot make an omelet without breaking a few eggs.',
     ]
-path_List = [
-    './Wav_for_Inference/FV.AWB.arctic_a0001.wav'
-    './Wav_for_Inference/FV.JMK.arctic_a0004.wav'
-    './Wav_for_Inference/FV.SLT.arctic_a0007.wav'
-    './Wav_for_Inference/LJ.LJ050-0278.wav'
+wav_List_for_GST = [
+    './Wav_for_Inference/FV.AWB.arctic_a0001.wav',
+    './Wav_for_Inference/FV.JMK.arctic_a0004.wav',
+    './Wav_for_Inference/FV.SLT.arctic_a0007.wav',
+    './Wav_for_Inference/LJ.LJ050-0278.wav',
     ]
 ```
 __※The length of wav path must be 1 or same to text list.__
@@ -182,9 +182,9 @@ __※The length of wav path must be 1 or same to text list.__
 4. Run following command:
 ```
 new_GST_Tacotron.Inference(
-    path_List = path_List,
-    text_List = text_List,
-    file_Prefix = 'Result'
+    sentence_List = sentence_List,
+    wav_List_for_GST = wav_List_for_GST,
+    label = 'Result'
     )
 ```
 
