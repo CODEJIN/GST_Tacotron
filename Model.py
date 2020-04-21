@@ -359,6 +359,8 @@ class GST_Tacotron:
         export_Inference_Thread.daemon = True
         export_Inference_Thread.start()
 
+        return mels, stops, spectrograms, alignments
+
     def Export_Inference(self, sentence_List, mel_List, stop_List, spectrogram_List, alignment_List, label):
         os.makedirs(os.path.join(hp_Dict['Inference_Path'], 'Plot').replace("\\", "/"), exist_ok= True)
         os.makedirs(os.path.join(hp_Dict['Inference_Path'], 'Wav').replace("\\", "/"), exist_ok= True)        

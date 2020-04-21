@@ -209,9 +209,13 @@ tag_List = [
 __※The length of two lists must be same.__
 
 3. Run following command:
+
+* You can take the output as numpy arrays.
+
 ```
-new_GST_Tacotron.Inference_GST(wav_List, tag_List)
+mels, stops, spectrograms, alignments = new_GST_Tacotron.Inference_GST(wav_List, tag_List)
 ```
+
 
 4. The result is saved as a text file in inference directory. You can get the t-SNE analysis graph by using [R script](./R_Script/TSNE.R)
 
