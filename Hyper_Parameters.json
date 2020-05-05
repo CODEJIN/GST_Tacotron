@@ -2,8 +2,8 @@
     "Sound": {
         "Spectrogram_Dim": 513,
         "Mel_Dim": 80,
-        "Frame_Length": 50,
-        "Frame_Shift": 12.5,
+        "Frame_Length": 1024,
+        "Frame_Shift": 256,
         "Sample_Rate": 16000,
         "Max_Abs_Mel": 4
     },
@@ -128,7 +128,7 @@
         }
     },
 
-    "Inference_Step_Reduction": 3,
+    "Step_Reduction": 1,
     "Max_Step": 1000,
 
     "Vocoder_Taco1": {
@@ -160,7 +160,7 @@
     "Train": {
         "Pattern_Path": "C:/Pattern/GST.Pattern.LJFV",
         "Metadata_File": "METADATA.PICKLE",
-        "Batch_Size": 40,
+        "Batch_Size": 24,
         "Pattern_Sorting": true,
         "Min_Wav_Length": 500,
         "Max_Wav_Length": 10000,
@@ -184,7 +184,7 @@
     "Taco_Version": 2,
     "Use_Mixed_Precision": false,
     "Inference_Cut": true,
-    "Inference_Path": "D:/GST.Results/Taco2.GST16.LJFV.SMA.R3/Inference",
-    "Checkpoint_Path": "D:/GST.Results/Taco2.GST16.LJFV.SMA.R3/Checkpoint",
-    "Device": "0"    
+    "Inference_Path": "D:/GST.Results/Inference",
+    "Checkpoint_Path": "D:/GST.Results/Checkpoint",
+    "Device": "0"
 }

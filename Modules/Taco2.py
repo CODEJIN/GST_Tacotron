@@ -29,9 +29,10 @@ class Encoder(tf.keras.Model):
                 kernel_size= kernel_size,
                 strides= stride,
                 padding= 'same',
-                activation= 'relu'
+                use_bias= False
                 ))
-            self.layer.add(tf.keras.layers.BatchNormalization())    
+            self.layer.add(tf.keras.layers.BatchNormalization())
+            self.layer.add(tf.keras.layers.ReLU())
             self.layer.add(tf.keras.layers.Dropout(
                 rate= hp_Dict['Tacotron2']['Encoder']['Conv']['Dropout_Rate']
                 ))
@@ -84,7 +85,7 @@ class Decoder_Step(tf.keras.Model):
             )
 
         self.layer_Dict['Projection'] = tf.keras.layers.Dense(
-            units= hp_Dict['Sound']['Mel_Dim'] * hp_Dict['Inference_Step_Reduction'] + 1
+            units= hp_Dict['Sound']['Mel_Dim'] * hp_Dict['Step_Reduction'] + 1
             )
         
         self.get_initial_state = self.layer_Dict['RNN'].get_initial_state
@@ -138,9 +139,11 @@ class Decoder(tf.keras.Model):
                 kernel_size= kernel_size,
                 strides= stride,
                 padding= 'same',
-                activation= 'tanh' if index < len(hp_Dict['Tacotron2']['Decoder']['Conv']['Filters']) - 1 else None 
+                use_bias= False
                 ))
             self.layer_Dict['Postnet'].add(tf.keras.layers.BatchNormalization())
+            if index < len(hp_Dict['Tacotron2']['Decoder']['Conv']['Filters']) - 1:
+                self.layer_Dict['Postnet'].add(tf.keras.layers.Activation(activation= tf.nn.tanh))
             self.layer_Dict['Postnet'].add(tf.keras.layers.Dropout(
                 rate= hp_Dict['Tacotron2']['Encoder']['Conv']['Dropout_Rate']
                 ))
@@ -155,7 +158,7 @@ class Decoder(tf.keras.Model):
         '''
         encodings, mels = inputs
 
-        mels = mels[:, 0:-1:hp_Dict['Inference_Step_Reduction'], :]  #Only use last slices of each reduction for training
+        mels = mels[:, 0:-1:hp_Dict['Step_Reduction'], :]  #Only use last slices of each reduction for training
         decodings = tf.zeros(
             shape=[tf.shape(encodings)[0], 1, hp_Dict['Sound']['Mel_Dim']],
             dtype= encodings.dtype
@@ -192,7 +195,7 @@ class Decoder(tf.keras.Model):
                 decoding,
                 shape= [
                     -1,
-                    hp_Dict['Inference_Step_Reduction'],
+                    hp_Dict['Step_Reduction'],
                     hp_Dict['Sound']['Mel_Dim']
                     ]
                 )   #Reshape to r1 
@@ -207,7 +210,7 @@ class Decoder(tf.keras.Model):
         max_Step = tf.cond(
             pred= tf.convert_to_tensor(training),
             true_fn= lambda: tf.shape(mels)[1],
-            false_fn= lambda: hp_Dict['Max_Step'] // hp_Dict['Inference_Step_Reduction']
+            false_fn= lambda: hp_Dict['Max_Step'] // hp_Dict['Step_Reduction']
             )
         _, decodings, stops, alignments, _ = tf.while_loop(
             cond= lambda step, decodings, stops, alignments, previous_state: tf.less(step, max_Step),
@@ -329,9 +332,11 @@ class CBHG(tf.keras.layers.Layer):
                 filters= filters,
                 kernel_size= kernel_Size,
                 padding= 'same',
-                activation= 'relu' if index < len(self.project_conv_filters) - 1 else None
+                use_bias= False
                 ))
             self.layer_Dict['Conv1D_Projection'].add(tf.keras.layers.BatchNormalization())
+            if index < len(self.project_conv_filters) - 1:
+                self.layer_Dict['Conv1D_Projection'].add(tf.keras.layers.ReLU())
 
         if input_shapes[-1] != self.project_conv_filters[-1]:
             self.layer_Dict['Conv1D_Projection'].add(tf.keras.layers.Dense(
@@ -386,9 +391,10 @@ class ConvBank(tf.keras.layers.Layer):
                 filters= self.filters,
                 kernel_size= index + 1,
                 padding= 'same',
-                activation= 'relu'
+                use_bias= False
                 ))
             self.layer_Dict['ConvBank_{}'.format(index)].add(tf.keras.layers.BatchNormalization())
+            self.layer_Dict['ConvBank_{}'.format(index)].add(tf.keras.layers.ReLU())
 
         self.built = True
 

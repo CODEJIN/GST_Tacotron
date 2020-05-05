@@ -46,8 +46,8 @@ class Feeder:
                 raise ValueError('The metadata information and hyper parameter setting are not consistent.')
 
     def Pattern_Generate(self):
-        min_Mel_Length = hp_Dict['Train']['Min_Wav_Length'] / hp_Dict['Sound']['Frame_Shift']
-        max_Mel_Length = hp_Dict['Train']['Max_Wav_Length'] / hp_Dict['Sound']['Frame_Shift']
+        min_Mel_Length = hp_Dict['Train']['Min_Wav_Length'] * hp_Dict['Sound']['Sample_Rate'] / hp_Dict['Sound']['Frame_Shift'] / 1000
+        max_Mel_Length = hp_Dict['Train']['Max_Wav_Length'] * hp_Dict['Sound']['Sample_Rate'] / hp_Dict['Sound']['Frame_Shift'] / 1000
 
         path_List = [
             (path, self.metadata_Dict['Mel_Length_Dict'][path])
@@ -132,7 +132,7 @@ class Feeder:
                     ])  #initial frame
                 
                 padded_Length = np.maximum(new_Mel_Pattern.shape[1], new_Spectrogram_Pattern.shape[1])
-                padded_Length = int(np.ceil(padded_Length / hp_Dict['Inference_Step_Reduction']) * hp_Dict['Inference_Step_Reduction'])
+                padded_Length = int(np.ceil(padded_Length / hp_Dict['Step_Reduction']) * hp_Dict['Step_Reduction'])
                 new_Mel_Pattern = np.hstack([
                     new_Mel_Pattern,
                     np.zeros(shape=(pattern_Count, padded_Length - new_Mel_Pattern.shape[1] + 1, hp_Dict['Sound']['Mel_Dim']), dtype= np.float32)

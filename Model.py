@@ -173,7 +173,7 @@ class GST_Tacotron:
             decay_steps= 50000,
             decay_rate= 0.1,
             min_learning_rate= hp_Dict['Train']['Min_Learning_Rate'],
-            staircase= True
+            staircase= False
             )
 
         self.optimizer = tf.keras.optimizers.Adam(
@@ -181,6 +181,11 @@ class GST_Tacotron:
             beta_1= hp_Dict['Train']['ADAM']['Beta1'],
             beta_2= hp_Dict['Train']['ADAM']['Beta2'],
             epsilon= hp_Dict['Train']['ADAM']['Epsilon'],
+            )
+
+        self.checkpoint = tf.train.Checkpoint(
+            optimizer= self.optimizer,
+            model= self.model_Dict['Train']
             )
 
     # @tf.function(
@@ -221,8 +226,8 @@ class GST_Tacotron:
                 )
             stop_Loss = tf.nn.sigmoid_cross_entropy_with_logits(
                 labels= tf.sequence_mask(
-                    lengths= tf.math.ceil(mel_lengths / hp_Dict['Inference_Step_Reduction']),   # stop > 0.5: Going, stop < 0.5: Done
-                    maxlen= tf.math.ceil(tf.shape(mel_Loss)[-1] / hp_Dict['Inference_Step_Reduction']),
+                    lengths= tf.math.ceil(mel_lengths / hp_Dict['Step_Reduction']),   # stop > 0.5: Going, stop < 0.5: Done
+                    maxlen= tf.math.ceil(tf.shape(mel_Loss)[-1] / hp_Dict['Step_Reduction']),
                     dtype= tf.as_dtype(policy.compute_dtype)
                     ),
                 logits= stop_Logits
@@ -259,23 +264,18 @@ class GST_Tacotron:
 
         return gst        
 
-    def Restore(self, load_Step= None):
-        if load_Step is None:
+    def Restore(self, checkpoint_File_Path= None):
+        if checkpoint_File_Path is None:
             checkpoint_File_Path = tf.train.latest_checkpoint(hp_Dict['Checkpoint_Path'])
-        else:
-            checkpoint_File_Path = os.path.join(
-                hp_Dict['Checkpoint_Path'],
-                'S_{}.CHECKPOINT.H5'.format(load_Step or self.optimizer.iterations.numpy())
-                ).replace('\\', '/')
-        
+
         if not os.path.exists('{}.index'.format(checkpoint_File_Path)):
             print('There is no checkpoint.')
             return
 
-        self.model_Dict['Train'].load_weights(checkpoint_File_Path)
+        self.checkpoint.restore(checkpoint_File_Path)
         print('Checkpoint \'{}\' is loaded.'.format(checkpoint_File_Path))
 
-    def Train(self, initial_Step= 0):
+    def Train(self):
         if not os.path.exists(os.path.join(hp_Dict['Inference_Path'], 'Hyper_Parameters.json')):
             os.makedirs(hp_Dict['Inference_Path'], exist_ok= True)
             with open(os.path.join(hp_Dict['Inference_Path'], 'Hyper_Parameters.json').replace("\\", "/"), "w") as f:
@@ -283,10 +283,12 @@ class GST_Tacotron:
 
         def Save_Checkpoint():
             os.makedirs(os.path.join(hp_Dict['Checkpoint_Path']).replace("\\", "/"), exist_ok= True)
-            self.model_Dict['Train'].save_weights(os.path.join(
-                hp_Dict['Checkpoint_Path'],
-                'S_{}.CHECKPOINT.H5'.format(self.optimizer.iterations.numpy())
-                ).replace('\\', '/'))
+            self.checkpoint.save(
+                os.path.join(
+                    hp_Dict['Checkpoint_Path'],
+                    'S_{}.CHECKPOINT.H5'.format(self.optimizer.iterations.numpy())
+                    ).replace('\\', '/')
+                )
 
         def Run_Inference():
             sentence_List = []
@@ -304,16 +306,16 @@ class GST_Tacotron:
 
             self.Inference(sentence_List, wav_List_for_GST)
 
-            # if hp_Dict['GST']['Use']:
-            #     from Get_Path import Get_Path
-            #     wav_List, tag_List = Get_Path(100)
-            #     self.Inference_GST(wav_List, tag_List)
+        def Run_GST_Inference():
+            from Get_Path import Get_Path
+            wav_List, tag_List = Get_Path(100)
+            self.Inference_GST(wav_List, tag_List)
 
-        self.optimizer.iterations.assign(initial_Step)
-
-        Save_Checkpoint()        
+        # Save_Checkpoint()        
         if hp_Dict['Train']['Initial_Inference']:
             Run_Inference()
+            Run_GST_Inference()
+
         while True:
             start_Time = time.time()
 
@@ -333,6 +335,9 @@ class GST_Tacotron:
             
             if self.optimizer.iterations.numpy() % hp_Dict['Train']['Inference_Timing'] == 0:
                 Run_Inference()
+
+            if self.optimizer.iterations.numpy() % (hp_Dict['Train']['Inference_Timing'] * 10) == 0:
+                Run_GST_Inference()
 
     def Inference(self, sentence_List, wav_List_for_GST= None, label= None):
         print('Inference running...')
@@ -405,11 +410,12 @@ class GST_Tacotron:
             plt.close(new_Figure)
 
             new_Sig = inv_spectrogram(
-                spectrogram= np.transpose(spect[:np.maximum(1, slice_Index) * hp_Dict['Inference_Step_Reduction']]),
+                spectrogram= np.transpose(spect[:np.maximum(1, slice_Index) * hp_Dict['Step_Reduction']]),
                 num_freq= hp_Dict['Sound']['Spectrogram_Dim'],        
-                frame_shift_ms= hp_Dict['Sound']['Frame_Shift'],
-                frame_length_ms= hp_Dict['Sound']['Frame_Length'],
+                hop_length= hp_Dict['Sound']['Frame_Shift'],
+                win_length= hp_Dict['Sound']['Frame_Length'],
                 sample_rate= hp_Dict['Sound']['Sample_Rate'],
+                max_abs_value= hp_Dict['Sound']['Max_Abs_Mel'],
                 griffin_lim_iters= hp_Dict['Vocoder_Taco1']['Griffin-Lim_Iter']
                 )
             wavfile.write(
@@ -453,9 +459,6 @@ class GST_Tacotron:
             f.write('\n'.join(export_List))
 
 if __name__ == '__main__':
-    argParser = argparse.ArgumentParser()
-    argParser.add_argument("-s", "--start_step", required=False)
-
     new_Model = GST_Tacotron(is_Training= True)
     new_Model.Restore()
-    new_Model.Train(initial_Step= int(vars(argParser.parse_args())['start_step'] or 0))
+    new_Model.Train()

@@ -24,7 +24,8 @@ class Reference_Encoder(tf.keras.Model):
                 filters= filters,
                 kernel_size= kernel_Size,
                 strides= strides,
-                padding='same'
+                padding='same',
+                use_bias= False
                 ))
             self.layer_Dict['Conv2D_{}'.format(index)].add(tf.keras.layers.BatchNormalization())
             self.layer_Dict['Conv2D_{}'.format(index)].add(tf.keras.layers.ReLU())

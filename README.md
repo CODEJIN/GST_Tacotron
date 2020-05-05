@@ -9,6 +9,12 @@ Shen, J., Pang, R., Weiss, R. J., Schuster, M., Jaitly, N., Yang, Z., ... & Saur
 Wang, Y., Skerry-Ryan, R. J., Stanton, D., Wu, Y., Weiss, R. J., Jaitly, N., ... & Le, Q. (2017). Tacotron: Towards end-to-end speech synthesis. arXiv preprint arXiv:1703.10135.
 ```
 
+# Update
+* 2020-05-02
+    * BN and ReLU order is fixed (Now 'BN -> ReLU' and no bias)
+    * Frame shift and frame window is based on the sample for compatibility of Vocoder.
+    * `tf.train.Checkpoint` is used to save optimizer parameter saving. Thus, the step information is saved.
+
 # Requirements
 Please see the 'Requirements.txt'
 
@@ -61,7 +67,7 @@ Before proceeding, please set the pattern, inference, and checkpoint paths in 'H
     * See the following reference for details.
         * https://www.tensorflow.org/api_docs/python/tf/keras/layers/LSTM
     
-* Inference_Step_Reduction
+* Step_Reduction
     * Setting how many steps will be exported at single step in decoder.
 
 * Max_Step
@@ -221,7 +227,7 @@ mels, stops, spectrograms, alignments = new_GST_Tacotron.Inference_GST(wav_List,
 
 
 # Result
-* The following results are based on the checkpoint of 36000 steps of 40 batchs (69.09 epochs).
+* The following results are based on the checkpoint of 38000 steps of 40 batchs (43.77 epochs).
 * In figures, vertical line is stop detection.
 * All speakers are distinguishable.
 * Voice quality is not perfect, but I concluded that the reason is because the insufficient learning steps and the use of Griffin-Lim, not vocoder.
@@ -230,71 +236,71 @@ mels, stops, spectrograms, alignments = new_GST_Tacotron.Inference_GST(wav_List,
 ## Mel for GST: FastVox AWB A0001
 * Sentence: The grass is always greener on the other side of the fence.
 
-[Wav_IDX_0](./Example_Results/Wav/20200227.010826.IDX_0.WAV)
-![Figure_IDX_0](./Example_Results/Figures/20200227.010826.IDX_0.PNG)
+[Wav_IDX_0](./Example_Results/Wav/20200505.214958.IDX_0.WAV)
+![Figure_IDX_0](./Example_Results/Figures/20200505.214958.IDX_0.PNG)
 
 ## Mel for GST: FastVox BDL A0002
 * Sentence: Strike while the iron is hot.
 
-[Wav_IDX_1](./Example_Results/Wav/20200227.010826.IDX_1.WAV)
-![Figure_IDX_1](./Example_Results/Figures/20200227.010826.IDX_1.PNG)
+[Wav_IDX_1](./Example_Results/Wav/20200505.214958.IDX_1.WAV)
+![Figure_IDX_1](./Example_Results/Figures/20200505.214958.IDX_1.PNG)
 
 ## Mel for GST: FastVox CLB A0003
 * Sentence: A creative artist works on his next composition because he was not satisfied with his previous one.
 
-[Wav_IDX_2](./Example_Results/Wav/20200227.010826.IDX_2.WAV)
-![Figure_IDX_2](./Example_Results/Figures/20200227.010826.IDX_2.PNG)
+[Wav_IDX_2](./Example_Results/Wav/20200505.214958.IDX_2.WAV)
+![Figure_IDX_2](./Example_Results/Figures/20200505.214958.IDX_2.PNG)
 
 ## Mel for GST: FastVox JMK A0004
 * Sentence: You cannot make an omelet without breaking a few eggs.
 
-[Wav_IDX_3](./Example_Results/Wav/20200227.010826.IDX_3.WAV)
-![Figure_IDX_3](./Example_Results/Figures/20200227.010826.IDX_3.PNG)
+[Wav_IDX_3](./Example_Results/Wav/20200505.214958.IDX_3.WAV)
+![Figure_IDX_3](./Example_Results/Figures/20200505.214958.IDX_3.PNG)
 
 ## Mel for GST: FastVox KSP A0005.wav
 * Sentence: Death is like a fisherman who catches fish in his net and leaves them for a while in the water. The fish is still swimming but the net is around him, and the fisherman will draw him up.
 
-[Wav_IDX_4](./Example_Results/Wav/20200227.010826.IDX_4.WAV)
-![Figure_IDX_4](./Example_Results/Figures/20200227.010826.IDX_4.PNG)
+[Wav_IDX_4](./Example_Results/Wav/20200505.214958.IDX_4.WAV)
+![Figure_IDX_4](./Example_Results/Figures/20200505.214958.IDX_4.PNG)
 
 ## Mel for GST: FastVox.RMS A0006
 * Sentence: A man who marries a woman to educate her falls a victim to the same fallacy as the woman who marries a man to reform him.
 
-[Wav_IDX_5](./Example_Results/Wav/20200227.010826.IDX_5.WAV)
-![Figure_IDX_5](./Example_Results/Figures/20200227.010826.IDX_5.PNG)
+[Wav_IDX_5](./Example_Results/Wav/20200505.214958.IDX_5.WAV)
+![Figure_IDX_5](./Example_Results/Figures/20200505.214958.IDX_5.PNG)
 
 ## Mel for GST: FastVox.SLT A0007
 * Sentence: Birds of a feather flock together.
 
-[Wav_IDX_6](./Example_Results/Wav/20200227.010826.IDX_6.WAV)
-![Figure_IDX_6](./Example_Results/Figures/20200227.010826.IDX_6.PNG)
+[Wav_IDX_6](./Example_Results/Wav/20200505.214958.IDX_6.WAV)
+![Figure_IDX_6](./Example_Results/Figures/20200505.214958.IDX_6.PNG)
 
 ## Mel for GST: LJspeech LJ050-0278
 * Sentence: Too many cooks in the kitchen spoil the broth.
 
-[Wav_IDX_7](./Example_Results/Wav/20200227.010826.IDX_7.WAV)
-![Figure_IDX_7](./Example_Results/Figures/20200227.010826.IDX_7.PNG)
+[Wav_IDX_7](./Example_Results/Wav/20200505.214958.IDX_7.WAV)
+![Figure_IDX_7](./Example_Results/Figures/20200505.214958.IDX_7.PNG)
 
 ## GST embedding t-SNE
-![GST_Embedding](./Example_Results/GST/20200227.010216.GST.PNG)
+![GST_Embedding](./Example_Results/GST/20200506.001527.GST.PNG)
 
 # Trained checkpoint
 
-[Checkpoint here](./Example_Results/Checkpoint/Checkpoint.zip)
+[Checkpoint here](https://drive.google.com/open?id=1qcm_eUS7R2Xa7N5quD1r0Iy2qQl1r6wd)
 
-* This is the checkpoint of 36000 steps of 40 batchs (69.09 epochs).
+* This is the checkpoint of 38000 steps of 24 batchs (43.77 epochs).
 * There is the hyper-parameter about this checkpoint in the zip file.
 
 
 # Future works
-1. Vocoder attaching. (I am focusing 'WaveGlow'.)
+1. Vocoder attaching. (I am focusing several vocdoers....)
 ```
 Prenger, R., Valle, R., & Catanzaro, B. (2019, May). Waveglow: A flow-based generative network for speech synthesis. In ICASSP 2019-2019 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP) (pp. 3617-3621). IEEE.
+Oord, A. V. D., Dieleman, S., Zen, H., Simonyan, K., Vinyals, O., Graves, A., ... & Kavukcuoglu, K. (2016). Wavenet: A generative model for raw audio. arXiv preprint arXiv:1609.03499.
+Kalchbrenner, N., Elsen, E., Simonyan, K., Noury, S., Casagrande, N., Lockhart, E., ... & Kavukcuoglu, K. (2018). Efficient neural audio synthesis. arXiv preprint arXiv:1802.08435.
+Yamamoto, R., Song, E., & Kim, J. M. (2020, May). Parallel WaveGAN: A fast waveform generation model based on generative adversarial networks with multi-resolution spectrogram. In ICASSP 2020-2020 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP) (pp. 6199-6203). IEEE.
+Kumar, K., Kumar, R., de Boissiere, T., Gestin, L., Teoh, W. Z., Sotelo, J., ... & Courville, A. C. (2019). Melgan: Generative adversarial networks for conditional waveform synthesis. In Advances in Neural Information Processing Systems (pp. 14881-14892).
 ```
-
-2. GST token control test
-    * The GST embedding of current result is based on the mel.
-    * The GST token control function is not attached yet.
 
 2. Tacotron 1 module update
     * Original paper used the tacotron 1, not tacotron 2.

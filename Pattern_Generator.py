@@ -51,9 +51,9 @@ def Mel_Generate(path, top_db= 60, range_Ignore = False):
 
     return np.transpose(melspectrogram(
         y= sig,
-        num_freq= hp_Dict['Sound']['Spectrogram_Dim'],        
-        frame_shift_ms= hp_Dict['Sound']['Frame_Shift'],
-        frame_length_ms= hp_Dict['Sound']['Frame_Length'],        
+        num_freq= hp_Dict['Sound']['Spectrogram_Dim'],
+        hop_length= hp_Dict['Sound']['Frame_Shift'],
+        win_length= hp_Dict['Sound']['Frame_Length'],
         num_mels= hp_Dict['Sound']['Mel_Dim'],
         sample_rate= hp_Dict['Sound']['Sample_Rate'],
         max_abs_value= hp_Dict['Sound']['Max_Abs_Mel']
@@ -75,9 +75,10 @@ def Spectrogram_Generate(path, top_db= 60, range_Ignore = False):
     return np.transpose(spectrogram(
         y= sig,
         num_freq= hp_Dict['Sound']['Spectrogram_Dim'],        
-        frame_shift_ms= hp_Dict['Sound']['Frame_Shift'],
-        frame_length_ms= hp_Dict['Sound']['Frame_Length'],
-        sample_rate= hp_Dict['Sound']['Sample_Rate']
+        hop_length= hp_Dict['Sound']['Frame_Shift'],
+        win_length= hp_Dict['Sound']['Frame_Length'],
+        sample_rate= hp_Dict['Sound']['Sample_Rate'],
+        max_abs_value= hp_Dict['Sound']['Max_Abs_Mel']
         ).astype(np.float32))
 
 def Pattern_File_Generate(path, text, token_Index_Dict, dataset, file_Prefix='', display_Prefix = '', top_db= 60, range_Ignore = False):

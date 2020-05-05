@@ -4,7 +4,7 @@ library(tidyverse)
 library(Rtsne)
 library(tools)
 
-base_Dir <- 'D:/GST.Results/Taco2.GST16.LJFV.SMA.R3/Inference/GST/'
+base_Dir <- 'D:/GST.Results/Inference/GST/'
 
 list.files(base_Dir)
 for(file in list.files(base_Dir))
